@@ -3747,6 +3747,8 @@ function updateMusicUI() {
   musicBtn.title = BGM.loaded ? ('正在播放：' + BGM.name) : '把 bgm.mp3 放到本文件同目录，或点「選曲」载入';
   musicVol.style.setProperty('--p', musicVol.value + '%');
   BGM.setVolume(+musicVol.value / 100);
+  const cr = document.getElementById('credit');
+  if (cr) cr.style.display = BGM.loaded ? '' : 'none';
 }
 musicVol.addEventListener('input', updateMusicUI);
 musicBtn.addEventListener('click', () => {
