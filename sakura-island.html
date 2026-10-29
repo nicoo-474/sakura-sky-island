@@ -1,0 +1,3930 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>空の島 · 櫻 — Sakura Sky Island</title>
+<style>
+  :root{
+    --pink:#ffc2d6;
+    --pink-dim:rgba(255,194,214,.55);
+    --ink:rgba(255,244,248,.94);
+    --panel:rgba(28,16,28,.40);
+    --line:rgba(255,196,220,.16);
+    --serif:"Songti SC","Noto Serif SC","Yu Mincho","Hiragino Mincho ProN",serif;
+    --sans:"Inter","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0d0812;color:var(--ink);font-family:var(--sans)}
+  #app{position:fixed;inset:0}
+  #app canvas{display:block;width:100%;height:100%;filter:saturate(1.16) contrast(1.06)}
+
+  /* 大气感：暗角 + 极细颗粒，制造手绘厚涂的物理质感 */
+  .veil{position:fixed;inset:0;pointer-events:none;z-index:5}
+  .veil.vignette{background:radial-gradient(120% 95% at 50% 42%,transparent 38%,rgba(58,14,44,.16) 74%,rgba(30,6,24,.34) 100%)}
+  .veil.grain{opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='0.55'/></svg>")}
+
+  /* ---------- 标题 ---------- */
+  #brand{position:fixed;left:34px;top:30px;z-index:10;pointer-events:none;user-select:none}
+  #brand .jp{
+    font-family:var(--serif);font-size:30px;letter-spacing:.34em;line-height:1;
+    color:#fff;text-shadow:0 2px 26px rgba(255,140,190,.55),0 1px 3px rgba(60,0,30,.4);
+  }
+  #brand .jp em{font-style:normal;color:var(--pink)}
+  #brand .rule{width:52px;height:1px;margin:12px 0 9px;background:linear-gradient(90deg,var(--pink),transparent)}
+  #brand .en{font-size:8.5px;letter-spacing:.42em;text-transform:uppercase;color:rgba(255,232,240,.62)}
+
+  /* ---------- 控制面板 ---------- */
+  #hud{position:fixed;left:34px;bottom:30px;z-index:10;display:flex;flex-direction:column;gap:12px;width:306px}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:15px 17px 16px;backdrop-filter:blur(18px) saturate(1.35);-webkit-backdrop-filter:blur(18px) saturate(1.35);
+    box-shadow:0 18px 52px -18px rgba(50,4,34,.75),inset 0 1px 0 rgba(255,220,235,.10);
+  }
+  .row{display:flex;align-items:center;gap:12px}
+  .row + .row{margin-top:13px;padding-top:13px;border-top:1px solid rgba(255,200,225,.09)}
+  .lbl{font-family:var(--serif);font-size:11px;letter-spacing:.30em;color:rgba(255,214,230,.70);flex:0 0 auto;padding-left:2px}
+
+  .seg{display:flex;flex:1;gap:3px;background:rgba(255,190,215,.055);border:1px solid rgba(255,190,215,.10);border-radius:11px;padding:3px}
+  .seg button{
+    flex:1;appearance:none;border:0;background:transparent;color:rgba(255,232,240,.60);
+    font-family:var(--serif);font-size:11.5px;letter-spacing:.13em;padding:7px 0 8px;border-radius:8px;
+    cursor:pointer;transition:.28s cubic-bezier(.4,0,.2,1);white-space:nowrap;
+  }
+  .seg button:hover{color:#fff;background:rgba(255,190,215,.10)}
+  .seg button.on{
+    color:#2a0c1c;background:linear-gradient(160deg,#ffdae6,#ffb0cb);
+    box-shadow:0 2px 14px -2px rgba(255,150,190,.75),inset 0 1px 0 rgba(255,255,255,.65);
+  }
+
+  .windwrap{flex:1;display:flex;align-items:center;gap:11px}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;flex:1;height:20px;background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:3px;border-radius:2px;
+    background:linear-gradient(90deg,var(--pink) 0%,var(--pink) var(--p,50%),rgba(255,200,225,.16) var(--p,50%),rgba(255,200,225,.16) 100%);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;margin-top:-5px;
+    background:#fff6fa;border:1px solid rgba(255,255,255,.9);
+    box-shadow:0 0 0 3px rgba(255,170,205,.20),0 2px 8px rgba(60,0,30,.5);
+  }
+  .windval{font-size:9.5px;letter-spacing:.16em;color:rgba(255,220,235,.62);width:44px;text-align:right;font-variant-numeric:tabular-nums}
+
+  .mini{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,200,225,.09)}
+  .toggle{
+    white-space:nowrap;flex:0 0 auto;
+    font-family:var(--serif);font-size:10.5px;letter-spacing:.16em;color:rgba(255,228,238,.55);
+    background:rgba(255,190,215,.05);border:1px solid rgba(255,190,215,.12);border-radius:9px;
+    padding:6px 11px;cursor:pointer;transition:.25s;
+  }
+  .toggle:hover{color:#fff;border-color:rgba(255,190,215,.30)}
+  .toggle.on{color:#3a0d20;background:linear-gradient(160deg,#ffe0ea,#ffb9d0);border-color:transparent}
+  .hint{margin-left:auto;font-size:9px;letter-spacing:.14em;color:rgba(255,225,238,.34);text-align:right;line-height:1.7}
+
+  /* ---------- 载入 ---------- */
+  #boot{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;
+        background:radial-gradient(90% 90% at 50% 45%,#2a1230 0%,#120812 70%,#0a050c 100%);transition:opacity 1.1s ease .1s}
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot .k{font-family:var(--serif);font-size:15px;letter-spacing:.55em;color:rgba(255,224,236,.86);text-indent:.55em}
+  #boot .bar{width:150px;height:1px;background:rgba(255,200,225,.15);overflow:hidden}
+  #boot .bar i{display:block;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--pink),transparent);animation:slide 1.5s infinite ease-in-out}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(360%)}}
+
+  #err{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;display:none;
+       max-width:70vw;font:12px/1.7 ui-monospace,monospace;color:#ffb3c8;background:rgba(30,6,18,.92);
+       border:1px solid rgba(255,120,160,.35);border-radius:12px;padding:18px 22px;white-space:pre-wrap}
+
+  #credit{
+    position:fixed;right:20px;bottom:16px;z-index:9;pointer-events:none;user-select:none;
+    font-size:9px;letter-spacing:.08em;line-height:1.7;text-align:right;
+    color:rgba(255,226,240,.34);text-shadow:0 1px 6px rgba(40,0,20,.5);
+  }
+  #credit b{font-weight:400;color:rgba(255,200,225,.5)}
+
+  @media (max-width:720px){
+    #brand{left:20px;top:20px}#brand .jp{font-size:22px}
+    #hud{left:14px;right:14px;bottom:14px;width:auto}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="veil vignette"></div>
+<div class="veil grain"></div>
+
+<div id="brand">
+  <div class="jp">空<em>の</em>島</div>
+  <div class="rule"></div>
+  <div class="en">sakura · sky island</div>
+</div>
+
+<div id="hud">
+  <div class="card">
+    <div class="row">
+      <div class="lbl">時</div>
+      <div class="seg" id="segTime">
+        <button data-t="dawn">黎明</button>
+        <button data-t="day" class="on">晴日</button>
+        <button data-t="dusk">黄昏</button>
+        <button data-t="night">夜</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="lbl">風</div>
+      <div class="windwrap">
+        <input id="wind" type="range" min="0" max="100" value="26" />
+        <div class="windval" id="windVal">微风</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="lbl">音</div>
+      <div class="windwrap">
+        <button class="toggle" id="btnMusic">音楽 ▶</button>
+        <button class="toggle" id="btnPick">選曲</button>
+        <input id="musicVol" type="range" min="0" max="100" value="45" />
+      </div>
+    </div>
+    <input id="musicFile" type="file" accept="audio/*" style="display:none" />
+    <div class="mini">
+      <button class="toggle on" id="btnOrbit">自動回旋</button>
+      <button class="toggle" id="btnPetal">花吹雪</button>
+      <div class="hint">拖拽環視<br>滾輪遠近</div>
+    </div>
+  </div>
+</div>
+
+<div id="credit">BGM · <b>廃獄ララバイ</b> arr. Boring-X- ／ 幻想之王GensoKing<br>東方Project 二次創作 · 原曲 ZUN（上海アリス幻樂団）</div>
+
+<div id="boot"><div class="k">空 島 を 編 む</div><div class="bar"><i></i></div></div>
+<div id="err"></div>
+
+<script src="libs/three.min.js"></script>
+<script>
+window.addEventListener('error', function (e) {
+  var d = document.getElementById('err');
+  if (!d) return;
+  d.style.display = 'block';
+  d.textContent = 'ERROR: ' + (e.message || '') + '\n' + (e.filename || '') + ':' + (e.lineno || '') + '\n' + ((e.error && e.error.stack) || '');
+});
+</script>
+<script>
+if(!window.THREE){
+  document.write('<script src="https://registry.npmmirror.com/three/0.159.0/files/build/three.min.js"><\/script>');
+}
+</script>
+<script>
+/* =========================================================================
+   空の島 · SAKURA SKY ISLAND
+   A hand-built three.js scene — procedural geometry only, no external assets.
+   ========================================================================= */
+(function () {
+"use strict";
+const T = THREE;
+
+/* ------------------------------------------------------------------ *
+ *  0. 基础：随机、噪声、数学
+ * ------------------------------------------------------------------ */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let RNG = mulberry32(20260401);
+const rnd = (a = 0, b = 1) => a + (b - a) * RNG();
+const rndi = (a, b) => Math.floor(rnd(a, b + 1));
+const pick = (a) => a[Math.floor(RNG() * a.length) % a.length];
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const smoothstep = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+const TAU = Math.PI * 2;
+
+function hash2(x, y, s) {
+  s = s || 0;
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(s | 0, 1442695041);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h = h ^ (h >>> 16);
+  return (h >>> 0) / 4294967295;
+}
+function vnoise(x, y, s) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash2(xi, yi, s), b = hash2(xi + 1, yi, s), c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+function fbm(x, y, oct, s) {
+  oct = oct || 4; s = s || 0;
+  let val = 0, amp = 0.5, f = 1, norm = 0;
+  for (let i = 0; i < oct; i++) { val += amp * vnoise(x * f, y * f, s + i * 37); norm += amp; f *= 2.03; amp *= 0.5; }
+  return val / norm;
+}
+
+/* ------------------------------------------------------------------ *
+ *  1. 色板 —— 樱花 / 和风
+ * ------------------------------------------------------------------ */
+const PAL = {
+  groundBase: '#eec3d3',
+  groundShades: ['#fceaf1', '#f7d7e3', '#eec3d3', '#e2aec1', '#d5a0b3', '#fae1ea'],
+  grass: '#ad6786',
+  grassHi: '#a05a7c',
+  flower: '#fff4f7',
+  blossom: '#ffbcd3',
+  blossomAlt: '#ffd2e0',
+  wood: '#4b3139',
+  woodHi: '#5d3c45',
+  stone: '#e2cdd4',
+  stoneDk: '#c2a6b1',
+  rock: '#b08a9b',
+  roof: '#3a2a33',
+  paper: '#f4e8dc',
+  lantern: '#ffd9a8',
+};
+
+/* ------------------------------------------------------------------ *
+ *  2. 程序化贴图
+ * ------------------------------------------------------------------ */
+function cv(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  return c;
+}
+function toTex(canvas, opt) {
+  const t = new T.CanvasTexture(canvas);
+  t.colorSpace = T.SRGBColorSpace;
+  t.anisotropy = 8;
+  if (opt && opt.repeat) { t.wrapS = t.wrapT = T.RepeatWrapping; }
+  else { t.wrapS = t.wrapT = T.ClampToEdgeWrapping; }
+  t.needsUpdate = true;
+  return t;
+}
+
+/* --- 2.1 厚涂草地：单一色系、纯色色块笔触 --- */
+function makeGroundTexture(size) {
+  size = size || 1536;
+  const c = cv(size), g = c.getContext('2d');
+  g.fillStyle = PAL.groundBase; g.fillRect(0, 0, size, size);
+
+  const blob = (cx, cy, r, col, alpha, wob) => {
+    const n = 13;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      const rr = r * (1 - wob * 0.5 + RNG() * wob);
+      pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * (0.75 + RNG() * 0.5)]);
+    }
+    g.beginPath();
+    g.moveTo((pts[0][0] + pts[n - 1][0]) / 2, (pts[0][1] + pts[n - 1][1]) / 2);
+    for (let i = 0; i < n; i++) {
+      const p = pts[i], q = pts[(i + 1) % n];
+      g.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+    }
+    g.closePath();
+    g.globalAlpha = alpha;
+    g.fillStyle = col;
+    g.fill();
+    g.globalAlpha = 1;
+  };
+
+  const S = PAL.groundShades;
+  // 大色块（柔边）—— 铺底
+  try { g.filter = 'blur(16px)'; } catch (e) {}
+  for (let i = 0; i < 22; i++) blob(rnd(0, size), rnd(0, size), rnd(size * 0.13, size * 0.30), S[rndi(0, 5)], rnd(0.7, 1.0), 0.5);
+  // 中色块（微柔）
+  try { g.filter = 'blur(2px)'; } catch (e) {}
+  for (let i = 0; i < 150; i++) blob(rnd(0, size), rnd(0, size), rnd(size * 0.05, size * 0.18), S[rndi(0, 5)], rnd(0.85, 1.0), 0.55);
+  try { g.filter = 'none'; } catch (e) {}
+  // 硬边笔触（厚涂感）
+  for (let i = 0; i < 520; i++) {
+    const x = rnd(0, size), y = rnd(0, size);
+    const r = rnd(size * 0.006, size * 0.028);
+    g.save(); g.translate(x, y); g.rotate(rnd(0, TAU));
+    g.globalAlpha = rnd(0.22, 0.62);
+    g.fillStyle = S[rndi(0, 5)];
+    g.beginPath(); g.ellipse(0, 0, r * rnd(0.7, 2.2), r * rnd(0.25, 0.7), 0, 0, TAU); g.fill();
+    g.restore();
+  }
+  g.globalAlpha = 1;
+  return c;
+}
+
+/* --- 2.2 樱花团簇（镂空 alpha，整体球形法线用） --- */
+function blossomBlossom(g, x, y, r, rot, val) {
+  g.save();
+  g.translate(x, y); g.rotate(rot);
+  g.fillStyle = 'rgb(' + val + ',' + val + ',' + val + ')';
+  for (let p = 0; p < 5; p++) {
+    g.save(); g.rotate((p / 5) * TAU);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.bezierCurveTo(-r * 0.62, -r * 0.35, -r * 0.44, -r * 1.02, 0, -r * 0.96);
+    g.bezierCurveTo(r * 0.44, -r * 1.02, r * 0.62, -r * 0.35, 0, 0);
+    g.fill();
+    g.restore();
+  }
+  g.beginPath(); g.arc(0, 0, r * 0.19, 0, TAU); g.fill();
+  g.restore();
+}
+function makeBlossomTexture(size) {
+  size = size || 512;
+  const c = cv(size), g = c.getContext('2d');
+  g.clearRect(0, 0, size, size);
+  // 主体：致密重叠，形成花团
+  for (let i = 0; i < 150; i++) {
+    const a = RNG() * TAU, rr = Math.pow(RNG(), 0.42) * size * 0.315;
+    const x = size / 2 + Math.cos(a) * rr, y = size / 2 + Math.sin(a) * rr;
+    const s = size * (0.032 + RNG() * 0.022);
+    const v = Math.round(206 + RNG() * 49);
+    blossomBlossom(g, x, y, s, RNG() * TAU, v);
+  }
+  // 外缘破碎的散花，打断圆形轮廓
+  for (let i = 0; i < 26; i++) {
+    const a = RNG() * TAU, rr = size * (0.335 + RNG() * 0.08);
+    const x = size / 2 + Math.cos(a) * rr, y = size / 2 + Math.sin(a) * rr;
+    blossomBlossom(g, x, y, size * (0.016 + RNG() * 0.020), RNG() * TAU, Math.round(212 + RNG() * 43));
+  }
+  return toTex(c);
+}
+
+/* --- 2.3 单花瓣（飘落用） --- */
+function makePetalTexture(size) {
+  size = size || 128;
+  const c = cv(size), g = c.getContext('2d');
+  g.clearRect(0, 0, size, size);
+  g.translate(size / 2, size * 0.56);
+  g.fillStyle = '#ffffff';
+  g.beginPath();
+  g.moveTo(0, size * 0.36);
+  g.bezierCurveTo(-size * 0.40, size * 0.14, -size * 0.34, -size * 0.30, -size * 0.09, -size * 0.34);
+  g.quadraticCurveTo(0, -size * 0.22, size * 0.09, -size * 0.34);
+  g.bezierCurveTo(size * 0.34, -size * 0.30, size * 0.40, size * 0.14, 0, size * 0.36);
+  g.fill();
+  return toTex(c);
+}
+
+/* --- 2.4 云 --- */
+function makeCloudTexture(size) {
+  size = size || 512;
+  const c = cv(size), g = c.getContext('2d');
+  g.clearRect(0, 0, size, size);
+  const puff = (x, y, r, a) => {
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(255,255,255,' + a + ')');
+    gr.addColorStop(0.42, 'rgba(255,255,255,' + a * 0.72 + ')');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  };
+  for (let i = 0; i < 30; i++) {
+    const t = RNG();
+    const x = size * (0.18 + t * 0.64) + rnd(-0.05, 0.05) * size;
+    const y = size * (0.56 - Math.sin(t * Math.PI) * 0.16) + rnd(-0.05, 0.05) * size;
+    puff(x, y, size * rnd(0.06, 0.16), rnd(0.18, 0.44));
+  }
+  for (let i = 0; i < 12; i++) puff(size * rnd(0.25, 0.75), size * rnd(0.58, 0.72), size * rnd(0.08, 0.2), rnd(0.16, 0.3));
+  return toTex(c);
+}
+
+/* --- 2.5 柔光点 --- */
+function makeGlowTexture(size) {
+  size = size || 128;
+  const c = cv(size), g = c.getContext('2d');
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.25, 'rgba(255,255,255,0.55)');
+  gr.addColorStop(0.55, 'rgba(255,255,255,0.16)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  return toTex(c);
+}
+
+/* --- 2.6 石材 / 木纹（极淡，只为破掉塑料感） --- */
+function makeNoiseTexture(size, base, amp, streak) {
+  size = size || 256;
+  const c = cv(size), g = c.getContext('2d');
+  const img = g.createImageData(size, size);
+  const bc = new T.Color(base);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const n = fbm(x * 0.06, y * (streak ? 0.012 : 0.06), 3, 7) - 0.5;
+      const k = 1 + n * amp;
+      const i = (y * size + x) * 4;
+      img.data[i] = clamp(bc.r * 255 * k, 0, 255);
+      img.data[i + 1] = clamp(bc.g * 255 * k, 0, 255);
+      img.data[i + 2] = clamp(bc.b * 255 * k, 0, 255);
+      img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const t = new T.CanvasTexture(c);
+  t.colorSpace = T.SRGBColorSpace;
+  t.wrapS = t.wrapT = T.RepeatWrapping;
+  return t;
+}
+
+/* --- 2.7 月面（月海 + 环形山） --- */
+function makeMoonTexture(size) {
+  size = size || 1024;
+  const c = cv(size), g = c.getContext('2d');
+  g.fillStyle = '#efece7'; g.fillRect(0, 0, size, size);
+  // 表面细噪
+  for (let i = 0; i < 2600; i++) {
+    const x = RNG() * size, y = RNG() * size, r = size * (0.001 + RNG() * 0.006);
+    const v = RNG() > 0.5 ? 255 : 205;
+    g.fillStyle = 'rgba(' + v + ',' + v + ',' + (v - 4) + ',' + (0.03 + RNG() * 0.07) + ')';
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  // 月海
+  for (let i = 0; i < 8; i++) {
+    const x = size * (0.18 + RNG() * 0.64), y = size * (0.18 + RNG() * 0.64);
+    const r = size * (0.07 + RNG() * 0.13);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(150,148,152,0.55)');
+    gr.addColorStop(0.55, 'rgba(165,162,166,0.34)');
+    gr.addColorStop(1, 'rgba(170,168,170,0)');
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  // 环形山
+  for (let i = 0; i < 120; i++) {
+    const a = RNG() * TAU, rr = Math.sqrt(RNG()) * size * 0.46;
+    const x = size / 2 + Math.cos(a) * rr, y = size / 2 + Math.sin(a) * rr;
+    const r = size * (0.004 + RNG() * 0.018);
+    const gj = g.createRadialGradient(x, y, r * 0.5, x, y, r * 2.1);
+    gj.addColorStop(0, 'rgba(255,255,255,0.13)');
+    gj.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gj; g.beginPath(); g.arc(x, y, r * 2.1, 0, TAU); g.fill();
+    const gc = g.createRadialGradient(x - r * 0.25, y - r * 0.25, 0, x, y, r);
+    gc.addColorStop(0, 'rgba(118,116,120,0.5)');
+    gc.addColorStop(0.72, 'rgba(150,148,150,0.3)');
+    gc.addColorStop(1, 'rgba(196,194,196,0)');
+    g.fillStyle = gc; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  return toTex(c);
+}
+
+/* --- 2.8 木牌（神额） --- */
+function makeKanjiTexture(text, w, h) {
+  w = w || 256; h = h || 128;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#d9c6bc'; g.fillRect(0, 0, w, h);
+  // 木纹
+  for (let i = 0; i < 40; i++) {
+    g.strokeStyle = 'rgba(120,92,86,' + (0.05 + RNG() * 0.12) + ')';
+    g.lineWidth = 0.6 + RNG() * 1.6;
+    g.beginPath();
+    const y = RNG() * h;
+    g.moveTo(0, y);
+    g.bezierCurveTo(w * 0.3, y + rnd(-6, 6), w * 0.7, y + rnd(-6, 6), w, y + rnd(-4, 4));
+    g.stroke();
+  }
+  // 边框
+  g.strokeStyle = 'rgba(70,48,48,0.85)'; g.lineWidth = Math.max(2, h * 0.045);
+  g.strokeRect(h * 0.06, h * 0.06, w - h * 0.12, h - h * 0.12);
+  // 文字
+  g.fillStyle = 'rgba(46,26,30,0.92)';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const fs = Math.round(h * 0.56);
+  g.font = '600 ' + fs + 'px "Songti SC","Noto Serif SC",serif';
+  g.fillText(text, w / 2, h / 2 + fs * 0.03);
+  return toTex(c);
+}
+
+/* --- 2.9 做旧木纹（竖向纹理 + 结疤 + 风化斑） --- */
+function makeWoodGrain(size) {
+  size = size || 512;
+  const c = cv(size), g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, size, size);
+  // 竖向木纤维
+  for (let i = 0; i < 900; i++) {
+    const x = RNG() * size;
+    const w = 0.6 + RNG() * 2.6;
+    const dark = RNG() > 0.55;
+    g.fillStyle = dark ? 'rgba(90,70,62,' + (0.05 + RNG() * 0.17) + ')' : 'rgba(255,255,255,' + (0.06 + RNG() * 0.2) + ')';
+    g.fillRect(x, 0, w, size);
+  }
+  // 长条裂纹
+  for (let i = 0; i < 26; i++) {
+    g.strokeStyle = 'rgba(58,42,38,' + (0.10 + RNG() * 0.24) + ')';
+    g.lineWidth = 0.7 + RNG() * 1.7;
+    const x = RNG() * size;
+    g.beginPath();
+    g.moveTo(x, 0);
+    let cx = x;
+    for (let y = 0; y < size; y += size / 8) {
+      cx += (RNG() - 0.5) * size * 0.02;
+      g.lineTo(cx, y);
+    }
+    g.stroke();
+  }
+  // 结疤
+  for (let i = 0; i < 5; i++) {
+    const x = RNG() * size, y = RNG() * size, r = size * (0.008 + RNG() * 0.016);
+    for (let k = 0; k < 5; k++) {
+      g.strokeStyle = 'rgba(72,52,46,' + (0.22 - k * 0.03) + ')';
+      g.lineWidth = 1.2;
+      g.beginPath(); g.ellipse(x, y, r * (1 + k * 0.55), r * (1.6 + k * 0.8), 0, 0, TAU); g.stroke();
+    }
+  }
+  // 风化斑
+  for (let i = 0; i < 20; i++) {
+    const x = RNG() * size, y = RNG() * size, r = size * (0.03 + RNG() * 0.09);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(140,120,110,' + (0.10 + RNG() * 0.16) + ')');
+    gr.addColorStop(1, 'rgba(140,120,110,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  const t = new T.CanvasTexture(c);
+  t.colorSpace = T.SRGBColorSpace;
+  t.wrapS = t.wrapT = T.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+}
+
+/* --- 2.10 做旧石纹（斑点 + 裂纹 + 水渍） --- */
+function makeStoneGrain(size) {
+  size = size || 512;
+  const c = cv(size), g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, size, size);
+  for (let i = 0; i < 5200; i++) {
+    const x = RNG() * size, y = RNG() * size, r = 0.5 + RNG() * 2.1;
+    const v = RNG() > 0.5 ? 255 : 150;
+    g.fillStyle = 'rgba(' + v + ',' + v + ',' + v + ',' + (0.05 + RNG() * 0.18) + ')';
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  for (let i = 0; i < 16; i++) {
+    const x = RNG() * size, y = RNG() * size, r = size * (0.05 + RNG() * 0.12);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(120,108,104,' + (0.06 + RNG() * 0.12) + ')');
+    gr.addColorStop(1, 'rgba(120,108,104,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  for (let i = 0; i < 14; i++) {
+    g.strokeStyle = 'rgba(70,58,56,' + (0.14 + RNG() * 0.26) + ')';
+    g.lineWidth = 0.7 + RNG() * 1.4;
+    let x = RNG() * size, y = RNG() * size;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 5; k++) {
+      x += (RNG() - 0.5) * size * 0.16;
+      y += (RNG() - 0.5) * size * 0.16;
+      g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  const t = new T.CanvasTexture(c);
+  t.colorSpace = T.SRGBColorSpace;
+  t.wrapS = t.wrapT = T.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+}
+
+const TEX = {};
+TEX.groundCanvas = makeGroundTexture(1536);
+TEX.ground = toTex(TEX.groundCanvas);
+TEX.blossom = makeBlossomTexture(512);
+TEX.petal = makePetalTexture(128);
+TEX.cloud = makeCloudTexture(512);
+TEX.glow = makeGlowTexture(128);
+TEX.wood = makeNoiseTexture(256, '#ffffff', 0.30, true);
+TEX.stone = makeNoiseTexture(256, '#ffffff', 0.16, false);
+TEX.moon = makeMoonTexture(1024);
+TEX.woodGrain = makeWoodGrain(512);
+TEX.stoneGrain = makeStoneGrain(512);
+TEX.kanjiTorii = makeKanjiTexture('空 島', 256, 128);
+
+/* ------------------------------------------------------------------ *
+ *  3. 渲染器 / 场景 / 相机
+ * ------------------------------------------------------------------ */
+const app = document.getElementById('app');
+const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = T.SRGBColorSpace;
+renderer.toneMapping = T.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.16;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = T.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const scene = new T.Scene();
+scene.fog = new T.FogExp2(0xffe9f0, 0.0034);
+
+const camera = new T.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.5, 1200);
+
+/* ------------------------------------------------------------------ *
+ *  4. 天空穹顶：渐变 + 奔流云层 + 常驻星 + 月
+ * ------------------------------------------------------------------ */
+const MOON_DIR = new T.Vector3(-0.6466, 0.2419, -0.7234).normalize();   // 仰角约 14°
+
+const skyUniforms = {
+  uTop: { value: new T.Color('#1f93e2') },
+  uMid: { value: new T.Color('#6cc2f2') },
+  uHor: { value: new T.Color('#ffcfe0') },
+  uMoon: { value: new T.Color('#fff6e2') },
+  uMoonDir: { value: MOON_DIR.clone() },
+  uStar: { value: 0.35 },
+  uGlow: { value: 0.5 },
+  uTime: { value: 0 },
+  uCloud: { value: 0.55 },
+  uCloudSpeed: { value: 0.05 },
+  uCloudA: { value: new T.Color('#ffffff') },
+  uCloudB: { value: new T.Color('#c9a8bc') },
+  uSkyWind: { value: 0.6 },
+};
+const skyMat = new T.ShaderMaterial({
+  uniforms: skyUniforms,
+  side: T.BackSide,
+  depthWrite: false,
+  fog: false,
+  vertexShader: `
+    varying vec3 vDir;
+    void main(){
+      vDir = normalize(position);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }`,
+  fragmentShader: `
+    uniform vec3 uTop,uMid,uHor,uMoon,uMoonDir,uCloudA,uCloudB;
+    uniform float uStar,uGlow,uTime,uCloud,uCloudSpeed,uSkyWind;
+    varying vec3 vDir;
+
+    float hash21(vec2 p){
+      p = fract(p*vec2(123.34,456.21));
+      p += dot(p, p+45.32);
+      return fract(p.x*p.y);
+    }
+    float vnoise(vec2 p){
+      vec2 i = floor(p), f = fract(p);
+      vec2 u = f*f*(3.0-2.0*f);
+      float a = hash21(i), b = hash21(i+vec2(1.0,0.0));
+      float c = hash21(i+vec2(0.0,1.0)), d = hash21(i+vec2(1.0,1.0));
+      return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+    }
+    float fbm5(vec2 p){
+      float v = 0.0, a = 0.5;
+      for(int i=0;i<5;i++){ v += a*vnoise(p); p = p*2.03 + 7.1; a *= 0.5; }
+      return v;
+    }
+    float fbm4(vec2 p){
+      float v = 0.0, a = 0.5;
+      for(int i=0;i<4;i++){ v += a*vnoise(p); p = p*2.07 - 3.3; a *= 0.5; }
+      return v;
+    }
+    float h31(vec3 p){
+      return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);
+    }
+
+    void main(){
+      vec3 d = normalize(vDir);
+      float y = clamp(d.y*0.5+0.5, 0.0, 1.0);
+
+      /* --- 基础渐变 --- */
+      vec3 col = mix(uHor, uMid, smoothstep(0.448,0.512,y));
+      col = mix(col, uTop, smoothstep(0.498,0.680,y));
+      col = mix(col*0.55, col, smoothstep(0.40,0.505,y));
+
+      /* --- 星：恒在，随时间闪烁 --- */
+      if(uStar > 0.002){
+        vec3 q = floor(d*430.0);
+        float sd = h31(q);
+        float tw = 0.35 + 0.65*abs(sin(uTime*1.9 + sd*97.0));
+        float star = smoothstep(0.9958, 1.0, sd) * tw;
+        float big = smoothstep(0.9993, 1.0, sd) * (0.6 + 0.4*sin(uTime*3.1 + sd*40.0));
+        col += vec3(0.88,0.92,1.0) * (star*1.0 + big*1.6) * uStar * smoothstep(0.47,0.60,y);
+      }
+
+      /* --- 云海：两层流动噪声，风向驱动，快速流转 --- */
+      vec2 wdir = vec2(cos(uSkyWind), sin(uSkyWind));
+      vec2 flow = wdir * uTime * uCloudSpeed;
+      vec2 sp = d.xz * (1.9 / (d.y + 0.42));
+
+      // 大团块 + 拉丝 + 碎云，三层叠出奔涌感
+      float warp = fbm4(sp*0.50 + flow*0.5 + 3.7);
+      vec2 q1 = sp*0.72 + flow + vec2(warp*0.70, warp*0.45);
+      float base = fbm5(q1);
+      float detail = fbm4(q1*3.4 + 11.3 + flow*1.1);
+      vec2 stq = sp*vec2(0.40, 1.9) + flow*1.8;
+      float streak = fbm4(stq*1.7 + 5.1);
+
+      float dsum = base*0.74 + detail*0.34 + streak*0.16;
+      float dens = smoothstep(0.42, 0.63, dsum);
+      dens *= 0.72 + 0.42*streak;
+      float hfade = smoothstep(-0.03, 0.09, d.y);
+      float thin = smoothstep(0.30, 0.85, d.y);   // 高处云更薄透
+
+      vec3 cloudCol = mix(uCloudB, uCloudA, smoothstep(0.38, 0.78, dsum));
+      cloudCol *= mix(1.0, 0.86, thin);
+      // 月光在云缘的银边
+      float md0 = max(dot(d, normalize(uMoonDir)), 0.0);
+      cloudCol += uMoon * pow(md0, 18.0) * 0.55;
+      col = mix(col, cloudCol, clamp(dens * uCloud, 0.0, 1.0) * hfade);
+
+      /* --- 月晕 --- */
+      float md = max(dot(d, normalize(uMoonDir)), 0.0);
+      col += uMoon * pow(md, 340.0) * 0.55 * uGlow;
+      col += uMoon * pow(md, 14.0) * 0.10 * uGlow;
+
+      col += (fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-0.5)/255.0;
+      gl_FragColor = vec4(col,1.0);
+    }`,
+});
+const sky = new T.Mesh(new T.SphereGeometry(560, 48, 32), skyMat);
+sky.frustumCulled = false;
+sky.renderOrder = -1000;
+scene.add(sky);
+
+/* --- 月：带环形山与球面衰减的实心天体 --- */
+const moonUniforms = {
+  uMap: { value: TEX.moon },
+  uColor: { value: new T.Color('#fff6e2') },
+};
+const moonMat = new T.ShaderMaterial({
+  uniforms: moonUniforms,
+  fog: false,
+  vertexShader: `
+    varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+    void main(){
+      vUv = uv;
+      vN = normalize(normalMatrix * normal);
+      vec4 mv = modelViewMatrix * vec4(position,1.0);
+      vV = normalize(-mv.xyz);
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: `
+    uniform sampler2D uMap; uniform vec3 uColor;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+    void main(){
+      vec3 t = texture2D(uMap, vUv).rgb;
+      float limb = pow(max(dot(normalize(vN), normalize(vV)), 0.0), 0.45);
+      vec3 col = t * uColor * mix(0.26, 1.08, limb);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+});
+const moon = new T.Mesh(new T.SphereGeometry(18, 56, 36), moonMat);
+moon.position.copy(MOON_DIR).multiplyScalar(470);
+moon.renderOrder = -900;
+moon.frustumCulled = false;
+scene.add(moon);
+
+const moonHalo = new T.Sprite(new T.SpriteMaterial({
+  map: TEX.glow, color: 0xffe9c8, transparent: true, opacity: 0.42,
+  blending: T.AdditiveBlending, depthWrite: false, fog: false,
+}));
+moonHalo.scale.set(210, 210, 1);
+moonHalo.position.copy(moon.position);
+moonHalo.renderOrder = -880;
+scene.add(moonHalo);
+
+/* 云海在 E 段构建（需要独立的贴图实例） */
+
+/* ------------------------------------------------------------------ *
+ *  5. 光照：均匀光 + 一道直射光束
+ * ------------------------------------------------------------------ */
+const hemi = new T.HemisphereLight(0xdff0ff, 0xffd3e2, 0.95);
+scene.add(hemi);
+
+const sun = new T.DirectionalLight(0xfff3e4, 2.5);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 230;
+sun.shadow.camera.left = -52; sun.shadow.camera.right = 52;
+sun.shadow.camera.top = 52; sun.shadow.camera.bottom = -52;
+sun.shadow.bias = -0.0007;
+sun.shadow.normalBias = 0.03;
+sun.shadow.radius = 2.2;
+scene.add(sun);
+scene.add(sun.target);
+
+const SUN_DIR = new T.Vector3(-0.46, 0.74, -0.49).normalize();
+
+/* 月光边光：从月亮方向来的弱冷光，让月亮的方位在物体上可读 */
+const moonRim = new T.DirectionalLight(0xd4e2ff, 0.22);
+moonRim.position.copy(MOON_DIR).multiplyScalar(90);
+moonRim.castShadow = false;
+scene.add(moonRim);
+
+/* --- 5.1 月光柱：原来的体积光圆锥，只是起点改到月亮 --- */
+const BEAM_LEN = 470;
+const beamGeo = new T.CylinderGeometry(1.3, 4.6, BEAM_LEN, 48, 1, true);
+beamGeo.translate(0, BEAM_LEN * 0.5, 0);      // 底端在岛心
+const beamUniforms = {
+  uTime: { value: 0 },
+  uInt: { value: 0.42 },
+  uColor: { value: new T.Color('#ffe6c8') },
+};
+const beamMat = new T.ShaderMaterial({
+  uniforms: beamUniforms,
+  transparent: true,
+  blending: T.AdditiveBlending,
+  depthWrite: false,
+  side: T.DoubleSide,
+  vertexShader: `
+    varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+    void main(){
+      vUv = uv;
+      vec4 wp = modelMatrix * vec4(position,1.0);
+      vN = normalize(mat3(modelMatrix) * normal);
+      vV = normalize(cameraPosition - wp.xyz);
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+  fragmentShader: `
+    uniform float uTime,uInt; uniform vec3 uColor;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+    void main(){
+      float ndv = abs(dot(normalize(vN), normalize(vV)));
+      float body = pow(ndv, 0.85) * 1.2;
+      float vfade = smoothstep(0.0, 0.02, vUv.y) * (1.0 - smoothstep(0.50, 0.95, vUv.y));
+      float n1 = 0.78 + 0.22 * sin(vUv.x * 34.0 + uTime * 0.55) * sin(vUv.y * 38.0 - uTime * 0.30);
+      float n2 = 0.86 + 0.14 * sin(vUv.x * 11.0 - uTime * 0.22 + 2.1);
+      float a = body * vfade * n1 * n2 * uInt;
+      gl_FragColor = vec4(uColor, a);
+    }`,
+});
+const beam = new T.Mesh(beamGeo, beamMat);
+beam.frustumCulled = false;
+beam.renderOrder = 3;
+scene.add(beam);
+const _beamX = new T.Vector3(), _beamY = new T.Vector3(), _beamZ = new T.Vector3(), _toCam = new T.Vector3();
+function updateBeamOrientation() {
+  // 圆锥本身有体积，只需对齐月光方向
+  beam.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), MOON_DIR);
+  beam.position.set(0, 0, 0);
+}
+
+/* 地面光斑 */
+const beamPool = new T.Sprite(new T.SpriteMaterial({
+  map: TEX.glow, color: 0xffe3c2, transparent: true, opacity: 0.55,
+  blending: T.AdditiveBlending, depthWrite: false, depthTest: true,
+}));
+beamPool.scale.set(13, 13, 1);
+beamPool.renderOrder = 2;
+scene.add(beamPool);
+
+/* 光柱中的尘埃 */
+function makeMotes(count, color, size, spread, yRange) {
+  const g = new T.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  const seed = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const a = RNG() * TAU, r = Math.sqrt(RNG()) * spread;
+    pos[i * 3] = Math.cos(a) * r;
+    pos[i * 3 + 1] = yRange[0] + RNG() * (yRange[1] - yRange[0]);
+    pos[i * 3 + 2] = Math.sin(a) * r;
+    seed[i] = RNG();
+  }
+  g.setAttribute('position', new T.BufferAttribute(pos, 3));
+  g.setAttribute('aSeed', new T.BufferAttribute(seed, 1));
+  const m = new T.PointsMaterial({
+    size: size, map: TEX.glow, color: color, transparent: true, opacity: 0.75,
+    blending: T.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false,
+  });
+  const p = new T.Points(g, m);
+  p.frustumCulled = false;
+  return p;
+}
+
+/* ------------------------------------------------------------------ *
+ *  6. 风：给材质注入顶点摆动
+ * ------------------------------------------------------------------ */
+const windState = { target: 0.26, cur: 0.26, dirAngle: 0.6, dir: new T.Vector2(1, 0) };
+const sharedUniforms = {
+  uTime: { value: 0 },
+  uWind: { value: 0.26 },
+  uWindDir: { value: new T.Vector2(1, 0) },
+};
+
+/* 6.1 草：InstancedMesh，每实例带 aRot / aPhase */
+function windifyGrass(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = sharedUniforms.uTime;
+    sh.uniforms.uWind = sharedUniforms.uWind;
+    sh.uniforms.uWindDir = sharedUniforms.uWindDir;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>
+        uniform float uTime; uniform float uWind; uniform vec2 uWindDir;
+        attribute float aRot; attribute float aPhase;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        {
+          #ifdef USE_INSTANCING
+            vec3 ipos = instanceMatrix[3].xyz;
+          #else
+            vec3 ipos = vec3(0.0);
+          #endif
+          float c = cos(aRot), s = sin(aRot);
+          vec2 wd = normalize(uWindDir + vec2(1e-5));
+          vec2 ld = vec2(wd.x*c - wd.y*s, wd.x*s + wd.y*c);
+          float hgt = clamp(transformed.y, 0.0, 2.4);
+          float bendw = pow(hgt, 1.75);
+          float gust = 0.55 + 0.45*sin(uTime*0.75 + dot(ipos.xz, vec2(0.19,0.13)));
+          float sway = 0.5 + 0.5*sin(uTime*2.15 + aPhase + dot(ipos.xz, vec2(0.55,0.42)));
+          float amp = (0.06 + 0.62*uWind) * gust * (0.45 + 0.55*sway) * bendw;
+          transformed.xz += ld * amp;
+          transformed.y -= amp*amp*0.55;
+          transformed.x += sin(uTime*5.2 + aPhase*2.3) * 0.012 * hgt * (0.3 + uWind);
+          transformed.z += cos(uTime*4.6 + aPhase*1.7) * 0.010 * hgt * (0.3 + uWind);
+        }`);
+    sh.fragmentShader = sh.fragmentShader.replace(
+      'float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;',
+      'float faceDirection = 1.0;'
+    );
+  };
+  mat.customProgramCacheKey = () => 'grasswind';
+}
+
+/* 6.2 叶团 / 花：静态合并网格，用 aSway 权重 */
+function windifyFoliage(mat, ampScale) {
+  ampScale = ampScale || 1;
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = sharedUniforms.uTime;
+    sh.uniforms.uWind = sharedUniforms.uWind;
+    sh.uniforms.uWindDir = sharedUniforms.uWindDir;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>
+        uniform float uTime; uniform float uWind; uniform vec2 uWindDir;
+        attribute float aSway; attribute float aPhase;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        {
+          float k = ${(1.15 * ampScale).toFixed(3)};
+          float sway = sin(uTime*1.55 + aPhase) * 0.5 + 0.5;
+          float gust = 0.55 + 0.45*sin(uTime*0.62 + aPhase*0.35);
+          float amp = (0.06 + 1.15*uWind) * aSway * k * (0.28 + 0.72*sway) * gust;
+          transformed.x += uWindDir.x * amp;
+          transformed.z += uWindDir.y * amp;
+          transformed.y -= abs(amp) * 0.16;
+          float fl = 0.055 * uWind * aSway;
+          transformed.x += sin(uTime*3.9 + aPhase*2.3) * fl;
+          transformed.z += cos(uTime*3.3 + aPhase*1.7) * fl;
+        }`);
+    sh.fragmentShader = sh.fragmentShader.replace(
+      'float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;',
+      'float faceDirection = 1.0;'
+    );
+  };
+  mat.customProgramCacheKey = () => 'foliagewind' + ampScale;
+}
+
+/* 便捷构建 */
+function matStd(o) { return new T.MeshStandardMaterial(o); }
+function shadowOn(o, cast, recv) { o.castShadow = cast !== false; o.receiveShadow = recv !== false; return o; }
+/* =========================================================================
+   B. 空岛本体
+   ========================================================================= */
+
+const R_MAX = 15.4;                    // 平均半径
+const ISLAND_Y = 0;                    // 地面基准
+
+function islandRadius(a) {
+  return R_MAX * (1
+    + 0.058 * Math.sin(a * 3 + 1.1)
+    + 0.034 * Math.sin(a * 5 - 0.6)
+    + 0.020 * Math.sin(a * 9 + 2.3)
+    + 0.012 * Math.sin(a * 15 + 0.4));
+}
+
+/* 地表高度场：缓丘 + 起伏 + 边缘坠落 */
+function groundH(x, z) {
+  const r = Math.hypot(x, z);
+  const R = islandRadius(Math.atan2(z, x));
+  const rn = clamp(r / R, 0, 1.4);
+  let h = 0;
+  h += (fbm(x * 0.062 + 3.1, z * 0.062 - 1.7, 4, 11) - 0.5) * 1.25;
+  h += (fbm(x * 0.24, z * 0.24, 3, 31) - 0.5) * 0.24;
+  h += 0.46 * Math.exp(-(r * r) / 96);                 // 中央缓丘
+  h -= 0.20 * smoothstep(0.0, 0.35, rn) * 0;           // 预留
+  const e = smoothstep(0.70, 1.0, rn);
+  h -= 1.55 * Math.pow(e, 1.55);                       // 边缘下坠
+  return h;
+}
+
+/* 通用网格化曲面（行=环，列=角），返回索引顺序为外向法线 */
+function gridMesh(rows, cols, fn) {
+  const pos = [], uv = [], idx = [], col = [];
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const d = fn(j, i);
+      pos.push(d.p[0], d.p[1], d.p[2]);
+      uv.push(d.uv[0], d.uv[1]);
+      if (d.c) col.push(d.c[0], d.c[1], d.c[2]);
+    }
+  }
+  for (let j = 0; j < rows - 1; j++) {
+    for (let i = 0; i < cols - 1; i++) {
+      const a = j * cols + i, b = j * cols + i + 1, c = (j + 1) * cols + i, d = (j + 1) * cols + i + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+  if (col.length) g.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/* ---------------------------------------------------------------- *
+ *  B1. 地表
+ * ---------------------------------------------------------------- */
+const RINGS = 76, SEGS = 176;
+
+function buildIslandTop() {
+  const pos = [], uv = [], idx = [];
+  // 中心点
+  pos.push(0, groundH(0, 0), 0); uv.push(0.5, 0.5);
+  const ringStart = 1;
+  for (let j = 0; j < RINGS; j++) {
+    const rt = Math.pow((j + 1) / RINGS, 0.92);
+    for (let i = 0; i <= SEGS; i++) {
+      const a = (i / SEGS) * TAU;
+      const R = islandRadius(a);
+      const r = rt * R;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      const y = groundH(x, z);
+      pos.push(x, y, z);
+      uv.push(x / (2 * R_MAX) + 0.5, z / (2 * R_MAX) + 0.5);
+    }
+  }
+  const cols = SEGS + 1;
+  // 中心扇形
+  for (let i = 0; i < SEGS; i++) {
+    idx.push(0, ringStart + i + 1, ringStart + i);
+  }
+  // 环带
+  for (let j = 0; j < RINGS - 1; j++) {
+    for (let i = 0; i < SEGS; i++) {
+      const a = ringStart + j * cols + i, b = a + 1, c = a + cols, d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+
+  const m = new T.MeshStandardMaterial({
+    map: TEX.ground,
+    bumpMap: TEX.ground,
+    bumpScale: 0.030,
+    roughness: 0.95,
+    metalness: 0.0,
+    color: 0xffffff,
+  });
+  const mesh = new T.Mesh(g, m);
+  mesh.receiveShadow = true;
+  mesh.castShadow = false;
+  return mesh;
+}
+scene.add(buildIslandTop());
+
+/* ---------------------------------------------------------------- *
+ *  B2. 岩体（下部）
+ * ---------------------------------------------------------------- */
+const RIM = [];          // 边缘采样点，供草丛使用
+const ROCK_POINTS = [];  // 岩体表面采样（供锁链贴合）
+const ROCK_RINGS = 19, ROCK_SEGS = 44;
+
+function buildIslandRock() {
+  const rimA = [], rimR = [], rimY = [];
+  for (let i = 0; i <= ROCK_SEGS; i++) {
+    const a = (i / ROCK_SEGS) * TAU;
+    const R = islandRadius(a);
+    rimA.push(a); rimR.push(R); rimY.push(groundH(Math.cos(a) * R, Math.sin(a) * R));
+  }
+  for (let i = 0; i < ROCK_SEGS; i += 4) {
+    RIM.push({ a: rimA[i], x: Math.cos(rimA[i]) * rimR[i], z: Math.sin(rimA[i]) * rimR[i], y: rimY[i], r: rimR[i] });
+  }
+
+  const cTop = new T.Color('#d3adbb'), cDeep = new T.Color('#8f6b7a'), cSoil = new T.Color('#bb8497');
+  const totalDepth = 19.5;
+
+  const g = gridMesh(ROCK_RINGS, ROCK_SEGS + 1, (j, i) => {
+    const t = j / (ROCK_RINGS - 1);
+    const a = rimA[i];
+    // 纵向轮廓：先略微外凸，再收拢成尖
+    let shrink = 1 - Math.pow(t, 0.62);
+    shrink = Math.pow(clamp(shrink, 0, 1), 0.72);
+    // 岩层与棱脊
+    const strata = 1 + 0.055 * Math.sin(t * 9.5 + a * 2.2) + 0.035 * Math.sin(a * 7 + t * 3);
+    const ridge = 1 + 0.30 * (fbm(a * 2.4 + 5.0, t * 3.2, 3, 71) - 0.5) * (0.35 + t);
+    const chunk = 1 + 0.22 * (fbm(Math.cos(a) * 2 + 9, Math.sin(a) * 2 + t * 2.4, 3, 91) - 0.5);
+    const r = rimR[i] * shrink * strata * ridge * chunk * (1 - 0.30 * Math.pow(t, 4));
+    const y = rimY[i] - Math.pow(t, 0.92) * totalDepth - 0.1 * fbm(a * 3, t * 6, 2, 5)
+      - 0.32 * (fbm(a * 5.5 + 2, t * 2.2, 2, 41) - 0.5) * (1 - t) * 3.0;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    // 颜色：表土 → 岩心
+    const k = Math.pow(t, 0.55);
+    const c = cSoil.clone().lerp(cDeep, smoothstep(0.0, 0.35, t));
+    c.lerp(cTop, 0.35 * (1 - k));
+    const v = 0.82 + 0.40 * fbm(a * 4, t * 7, 3, 17);
+    c.multiplyScalar(v);
+    ROCK_POINTS.push({ a: a, y: y, r: Math.hypot(x, z) });
+    return { p: [x, y, z], uv: [i / ROCK_SEGS * 3, t], c: [c.r, c.g, c.b] };
+  });
+
+  const m = new T.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.97, metalness: 0.0, flatShading: true, side: T.DoubleSide,
+  });
+  const mesh = new T.Mesh(g, m);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+scene.add(buildIslandRock());
+
+/* ---------------------------------------------------------------- *
+ *  B3. 石体工具：带噪声的圆角石块
+ * ---------------------------------------------------------------- */
+function roundedBoxGeo(w, h, d, r, seg) {
+  r = Math.min(r, Math.min(w, h, d) / 2 - 1e-4);
+  seg = seg || 4;
+  const g = new T.BoxGeometry(w, h, d, seg, seg, seg);
+  const pos = g.attributes.position, nrm = g.attributes.normal;
+  const hx = w / 2 - r, hy = h / 2 - r, hz = d / 2 - r;
+  const p = new T.Vector3(), q = new T.Vector3(), n = new T.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    p.fromBufferAttribute(pos, i);
+    q.set(clamp(p.x, -hx, hx), clamp(p.y, -hy, hy), clamp(p.z, -hz, hz));
+    n.copy(p).sub(q);
+    const l = n.length();
+    if (l > 1e-7) {
+      n.divideScalar(l);
+      p.copy(q).addScaledVector(n, r);
+      pos.setXYZ(i, p.x, p.y, p.z);
+      nrm.setXYZ(i, n.x, n.y, n.z);
+    }
+  }
+  pos.needsUpdate = true; nrm.needsUpdate = true;
+  g.computeBoundingSphere();
+  return g;
+}
+
+function displaceGeo(g, amp, freq, seed) {
+  const pos = g.attributes.position;
+  const v = new T.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const n = fbm(v.x * freq + seed, v.z * freq + v.y * freq * 0.7, 3, seed) - 0.5;
+    const n2 = fbm(v.y * freq * 1.7 + seed * 2, v.x * freq - seed, 2, seed + 5) - 0.5;
+    const k = 1 + (n + n2 * 0.6) * amp * 2;
+    pos.setXYZ(i, v.x * k, v.y * k, v.z * k);
+  }
+  pos.needsUpdate = true;
+  g.computeVertexNormals();
+  return g;
+}
+
+const rockMat = new T.MeshStandardMaterial({
+  color: new T.Color('#cfa8b6'), roughness: 0.96, metalness: 0, flatShading: true,
+});
+const rockMatDark = new T.MeshStandardMaterial({
+  color: new T.Color('#a67e8e'), roughness: 0.96, metalness: 0, flatShading: true,
+});
+
+function stoneChunk(w, h, d, jit, seed) {
+  const g = roundedBoxGeo(w, h, d, Math.min(w, h, d) * 0.34, 4);
+  displaceGeo(g, jit * 2.1, 2.6, seed || 3);
+  return g;
+}
+
+/* ---------------------------------------------------------------- *
+ *  B4. 岛下悬石 / 环绕碎岩 / 垂根
+ * ---------------------------------------------------------------- */
+const floaters = [];
+
+function buildHangingRocks() {
+  const grp = new T.Group();
+  const r = mulberry32(7788);
+  for (let i = 0; i < 5; i++) {
+    const a = r() * TAU;
+    const rr = R_MAX * (0.14 + r() * 0.34);
+    const y = -3 - r() * 11;
+    const s = 1.0 + r() * 2.2;
+    const g = stoneChunk(s * (0.7 + r() * 0.5), s * (1.1 + r() * 0.9), s * (0.7 + r() * 0.5), 0.16, 20 + i);
+    const m = new T.Mesh(g, i % 3 === 0 ? rockMatDark : rockMat);
+    m.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
+    m.rotation.set(r() * 0.5, r() * TAU, r() * 0.4);
+    m.castShadow = true; m.receiveShadow = true;
+    grp.add(m);
+  }
+  // 悬浮碎石
+  for (let i = 0; i < 11; i++) {
+    const a = r() * TAU;
+    const rr = R_MAX * (1.05 + r() * 0.85);
+    const y = -9 + r() * 18;
+    const s = 0.22 + r() * 0.62;
+    const g = stoneChunk(s * 1.4, s * 0.9, s * 1.1, 0.24, 40 + i);
+    const m = new T.Mesh(g, rockMat);
+    m.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
+    m.rotation.set(r() * TAU, r() * TAU, r() * TAU);
+    m.castShadow = false; m.receiveShadow = true;
+    grp.add(m);
+    floaters.push({ m, y0: y, ph: r() * TAU, sp: 0.10 + r() * 0.18, rot: (r() - 0.5) * 0.1, amp: 0.25 + r() * 0.45 });
+  }
+  return grp;
+}
+scene.add(buildHangingRocks());
+
+/* 垂根：从边缘垂下的细根 */
+function buildRoots() {
+  const grp = new T.Group();
+  const r = mulberry32(3399);
+  const m = new T.MeshStandardMaterial({ color: new T.Color('#6b4550'), roughness: 0.95, flatShading: true });
+  for (let i = 0; i < 16; i++) {
+    const a = r() * TAU;
+    const R = islandRadius(a) * (0.93 + r() * 0.08);
+    const x0 = Math.cos(a) * R, z0 = Math.sin(a) * R, y0 = groundH(x0, z0) - 0.3;
+    const len = 1.4 + r() * 3.4;
+    const pts = [];
+    const out = 0.35 + r() * 0.5;
+    for (let k = 0; k <= 5; k++) {
+      const t = k / 5;
+      pts.push(new T.Vector3(
+        x0 + Math.cos(a) * out * t * (1 - t * 0.3) + (r() - 0.5) * 0.06,
+        y0 - len * Math.pow(t, 0.85),
+        z0 + Math.sin(a) * out * t * (1 - t * 0.3) + (r() - 0.5) * 0.06
+      ));
+    }
+    const g = loftTube(pts, 0.045 + r() * 0.03, 0.006, 5, null);
+    const mesh = new T.Mesh(g, m);
+    mesh.castShadow = false;
+    grp.add(mesh);
+  }
+  return grp;
+}
+scene.add(buildRoots());
+
+/* 地表零星岩块（露头） */
+function buildOutcrops() {
+  const grp = new T.Group();
+  const spots = [
+    [7.2, -2.4, 1.5], [9.6, 2.2, 1.0], [-3.2, 9.4, 1.2], [-10.4, -1.0, 1.7],
+    [2.0, -11.0, 1.1], [-6.8, -8.6, 0.9], [11.2, -5.4, 0.85], [5.4, 10.6, 0.7],
+  ];
+  const r = mulberry32(515);
+  spots.forEach((s, i) => {
+    const [x, z, sc] = s;
+    const g = stoneChunk(sc * 1.6, sc * 0.85, sc * 1.25, 0.12, 300 + i);
+    const m = new T.Mesh(g, i % 2 ? rockMat : rockMatDark);
+    const y = groundH(x, z);
+    m.position.set(x, y + sc * 0.18, z);
+    m.rotation.y = r() * TAU;
+    m.rotation.z = (r() - 0.5) * 0.2;
+    m.castShadow = true; m.receiveShadow = true;
+    grp.add(m);
+  });
+  return grp;
+}
+/* =========================================================================
+   D. 和风建筑 · 遗迹
+   ========================================================================= */
+
+/* ---------- 做旧：世界高度积垢 / 污渍条纹 ---------- */
+function weatherify(mat, opts) {
+  const o = opts || {};
+  const bottom = o.bottom === undefined ? 0.62 : o.bottom;
+  const top = o.top === undefined ? 2.5 : o.top;
+  const strength = o.strength === undefined ? 0.85 : o.strength;
+  const stain = o.stain === undefined ? 0.18 : o.stain;
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uWBottom = { value: bottom };
+    sh.uniforms.uWTop = { value: top };
+    sh.uniforms.uWStr = { value: strength };
+    sh.uniforms.uWStain = { value: stain };
+    sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n  vWP = (modelMatrix * vec4(position, 1.0)).xyz;'
+    );
+    sh.fragmentShader = 'varying vec3 vWP;\nuniform float uWBottom;uniform float uWTop;uniform float uWStr;uniform float uWStain;\n' +
+      sh.fragmentShader.replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+        {
+          float dirt = 1.0 - smoothstep(uWBottom, uWTop, vWP.y);
+          float streak = 0.5 + 0.5 * sin(vWP.x * 5.3 + vWP.z * 4.1);
+          streak *= 0.5 + 0.5 * sin(vWP.y * 1.7 + vWP.x * 2.2);
+          float k = mix(1.0, 0.52 + 0.20 * streak, dirt * uWStr);
+          // 局部水渍/霉斑
+          float blot = sin(vWP.x * 1.9 + 1.3) * cos(vWP.z * 2.3 - 0.7) * sin(vWP.y * 2.9);
+          k *= 1.0 - max(0.0, blot) * uWStain;
+          diffuseColor.rgb *= k;
+        }`
+      );
+  };
+  mat.customProgramCacheKey = () => 'weather' + bottom + '_' + top + '_' + strength;
+  return mat;
+}
+
+function texRepeat(t, x, y) {
+  const c = t.clone();
+  c.needsUpdate = true;
+  c.wrapS = c.wrapT = T.RepeatWrapping;
+  c.repeat.set(x, y);
+  c.colorSpace = T.SRGBColorSpace;
+  c.anisotropy = 8;
+  return c;
+}
+
+/* ---------- 材质 ---------- */
+const M = {
+  wood: weatherify(matStd({
+    color: new T.Color('#c795a2'), roughness: 0.88, metalness: 0.0,
+    map: texRepeat(TEX.woodGrain, 1.6, 0.85), bumpMap: texRepeat(TEX.woodGrain, 1.6, 0.85), bumpScale: 0.004,
+  }), { bottom: 0.4, top: 2.6, strength: 0.42 }),
+  woodOld: weatherify(matStd({
+    color: new T.Color('#bd939e'), roughness: 0.93, metalness: 0.0,
+    map: texRepeat(TEX.woodGrain, 1.3, 1.0), bumpMap: texRepeat(TEX.woodGrain, 1.3, 1.0), bumpScale: 0.004,
+  }), { bottom: 0.45, top: 2.2, strength: 0.5 }),
+  woodDark: weatherify(matStd({
+    color: new T.Color('#6b4c58'), roughness: 0.86, metalness: 0.0,
+    map: texRepeat(TEX.woodGrain, 2.0, 0.7), bumpMap: texRepeat(TEX.woodGrain, 2.0, 0.7), bumpScale: 0.003,
+  }), { bottom: 0.3, top: 2.4, strength: 0.7 }),
+  stone: weatherify(matStd({
+    color: new T.Color('#dcc3cc'), roughness: 0.95, metalness: 0.0,
+    map: texRepeat(TEX.stoneGrain, 1.1, 1.1), bumpMap: texRepeat(TEX.stoneGrain, 1.1, 1.1), bumpScale: 0.006,
+  }), { bottom: 0.42, top: 1.5, strength: 1.0, stain: 0.24 }),
+  stoneDark: weatherify(matStd({
+    color: new T.Color('#c0a3af'), roughness: 0.96, metalness: 0.0,
+    map: texRepeat(TEX.stoneGrain, 0.9, 0.9), bumpMap: texRepeat(TEX.stoneGrain, 0.9, 0.9), bumpScale: 0.006,
+  }), { bottom: 0.35, top: 1.3, strength: 1.0, stain: 0.26 }),
+  roof: weatherify(matStd({
+    color: new T.Color('#6b5561'), roughness: 0.74, metalness: 0.08, side: T.DoubleSide,
+    map: texRepeat(TEX.stoneGrain, 2.4, 2.4), bumpMap: texRepeat(TEX.stoneGrain, 2.4, 2.4), bumpScale: 0.004,
+  }), { bottom: 1.2, top: 3.4, strength: 0.55, stain: 0.2 }),
+  plaster: weatherify(matStd({
+    color: new T.Color('#e6ccd4'), roughness: 0.95, metalness: 0.0,
+    map: texRepeat(TEX.stone, 2, 2),
+  }), { bottom: 0.5, top: 2.4, strength: 0.8, stain: 0.28 }),
+  paper: new T.MeshStandardMaterial({ color: new T.Color('#fdf5ee'), roughness: 0.95, metalness: 0.0, side: T.DoubleSide, emissive: new T.Color('#ffe9d6'), emissiveIntensity: 0.55 }),
+  metal: new T.MeshStandardMaterial({ color: new T.Color('#7e6570'), roughness: 0.5, metalness: 0.55 }),
+  lanternGlow: new T.MeshStandardMaterial({
+    color: new T.Color('#ffd9a8'), emissive: new T.Color('#ffb765'), emissiveIntensity: 0.0, roughness: 1,
+  }),
+  rope: weatherify(matStd({
+    color: new T.Color('#efe0c9'), roughness: 0.97, metalness: 0.0,
+    map: texRepeat(TEX.woodGrain, 3, 3),
+  }), { bottom: 1.0, top: 2.8, strength: 0.5, stain: 0.15 }),
+  plaque: new T.MeshStandardMaterial({ map: TEX.kanjiTorii, roughness: 0.85, metalness: 0.0, side: T.DoubleSide }),
+};
+
+/* ---------- 排除区（草丛避让） ---------- */
+const EXCLUDE = [];
+function addExclude(x, z, r) { EXCLUDE.push({ x, z, r }); }
+
+/* ---------- 通用：沿折线扫掠截面 ---------- */
+function loftSection(points, profile, upHint) {
+  const n = points.length, np = profile.length;
+  const pos = [], idx = [];
+  const up = upHint || new T.Vector3(0, 1, 0);
+  const frames = [];
+  for (let i = 0; i < n; i++) {
+    const t = new T.Vector3();
+    if (i === 0) t.subVectors(points[1], points[0]);
+    else if (i === n - 1) t.subVectors(points[n - 1], points[n - 2]);
+    else t.subVectors(points[i + 1], points[i - 1]);
+    t.normalize();
+    let u = new T.Vector3().crossVectors(up, t);
+    if (u.lengthSq() < 1e-6) u.crossVectors(new T.Vector3(0, 0, 1), t);
+    u.normalize();
+    const v = new T.Vector3().crossVectors(t, u).normalize();
+    frames.push({ u, v });
+  }
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < np; j++) {
+      const p = points[i].clone()
+        .addScaledVector(frames[i].u, profile[j][0])
+        .addScaledVector(frames[i].v, profile[j][1]);
+      pos.push(p.x, p.y, p.z);
+    }
+  }
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = 0; j < np; j++) {
+      const a = i * np + j, b = i * np + ((j + 1) % np), c = (i + 1) * np + j, d = (i + 1) * np + ((j + 1) % np);
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/* 圆管（树枝、绳索、柱） */
+function loftTube(points, r0, r1, radial, jitter) {
+  const n = points.length, R = radial || 8;
+  const pos = [], idx = [], uv = [];
+  const up = new T.Vector3(0, 1, 0);
+  const frames = [];
+  for (let i = 0; i < n; i++) {
+    const t = new T.Vector3();
+    if (i === 0) t.subVectors(points[1], points[0]);
+    else if (i === n - 1) t.subVectors(points[n - 1], points[n - 2]);
+    else t.subVectors(points[i + 1], points[i - 1]);
+    t.normalize();
+    let u = new T.Vector3().crossVectors(up, t);
+    if (u.lengthSq() < 1e-6) u.crossVectors(new T.Vector3(1, 0, 0), t);
+    u.normalize();
+    const v = new T.Vector3().crossVectors(t, u).normalize();
+    frames.push({ u, v, t });
+  }
+  for (let i = 0; i < n; i++) {
+    const s = i / (n - 1);
+    const rad = r0 + (r1 - r0) * s;
+    for (let j = 0; j < R; j++) {
+      const ang = (j / R) * TAU;
+      const k = jitter ? 1 + jitter(i, j) : 1;
+      const p = points[i].clone()
+        .addScaledVector(frames[i].u, Math.cos(ang) * rad * k)
+        .addScaledVector(frames[i].v, Math.sin(ang) * rad * k);
+      pos.push(p.x, p.y, p.z);
+      uv.push(j / R, s);
+    }
+  }
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = 0; j < R; j++) {
+      const a = i * R + j, b = i * R + ((j + 1) % R), c = (i + 1) * R + j, d = (i + 1) * R + ((j + 1) % R);
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/* 倒角矩形截面 */
+function chamferRect(w, h, c) {
+  c = Math.min(c, Math.min(w, h) * 0.4);
+  return [
+    [-w / 2 + c, -h / 2], [w / 2 - c, -h / 2], [w / 2, -h / 2 + c], [w / 2, h / 2 - c],
+    [w / 2 - c, h / 2], [-w / 2 + c, h / 2], [-w / 2, h / 2 - c], [-w / 2, -h / 2 + c],
+  ];
+}
+
+/* 拱形梁：沿 X 微翘 */
+function curvedBeam(len, depth, height, curl, chamfer, segs) {
+  segs = segs || 14;
+  const pts = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    const x = (t - 0.5) * len;
+    const y = curl * Math.pow(Math.abs(t - 0.5) * 2, 2.4);
+    pts.push(new T.Vector3(x, y, 0));
+  }
+  return loftSection(pts, chamferRect(depth, height, chamfer || Math.min(depth, height) * 0.18));
+}
+
+/* 带厚度的屋顶曲面（脊沿 X，坡向 ±Z） */
+function makeRoof(ridgeLen, spread, height, lift, thick, nu, nv) {
+  nu = nu || 18; nv = nv || 10;
+  const pos = [], idx = [];
+  const cols = nu + 1, rows = nv + 1;
+  const surf = (u, v, sgn, dy) => {
+    const x = u * ridgeLen * 0.5;
+    const z = sgn * v * spread * 0.5;
+    const y = height * Math.pow(1 - v, 1.32) + lift * Math.pow(Math.abs(u), 3.2) * Math.pow(v, 2.2) + dy;
+    return [x, y, z];
+  };
+  [1, -1].forEach((sgn) => {
+    const base = pos.length / 3;
+    // 上表面
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const u = (i / nu) * 2 - 1, v = j / nv;
+      const p = surf(u, v, sgn, thick);
+      pos.push(p[0], p[1], p[2]);
+    }
+    // 下表面
+    const base2 = pos.length / 3;
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const u = (i / nu) * 2 - 1, v = j / nv;
+      const p = surf(u, v, sgn, 0);
+      pos.push(p[0], p[1], p[2]);
+    }
+    for (let j = 0; j < rows - 1; j++) {
+      for (let i = 0; i < cols - 1; i++) {
+        const a = base + j * cols + i, b = a + 1, c = a + cols, d = c + 1;
+        if (sgn > 0) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+        const a2 = base2 + j * cols + i, b2 = a2 + 1, c2 = a2 + cols, d2 = c2 + 1;
+        if (sgn > 0) idx.push(a2, c2, b2, b2, c2, d2); else idx.push(a2, b2, c2, b2, d2, c2);
+      }
+    }
+    // 檐口封边（v=1 一侧）
+    for (let i = 0; i < cols - 1; i++) {
+      const t0 = base + (rows - 1) * cols + i, t1 = t0 + 1;
+      const b0 = base2 + (rows - 1) * cols + i, b1 = b0 + 1;
+      if (sgn > 0) idx.push(t0, b0, t1, t1, b0, b1); else idx.push(t0, t1, b0, t1, b1, b0);
+    }
+    // 两侧封边
+    for (let j = 0; j < rows - 1; j++) {
+      [0, cols - 1].forEach((ci, k2) => {
+        const t0 = base + j * cols + ci, t1 = base + (j + 1) * cols + ci;
+        const b0 = base2 + j * cols + ci, b1 = base2 + (j + 1) * cols + ci;
+        if (k2 === 0) idx.push(t0, t1, b0, t1, b1, b0);
+        else idx.push(t0, b0, t1, t1, b0, b1);
+      });
+    }
+  });
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/* ---------- 建筑总组 ---------- */
+const buildings = new T.Group();
+scene.add(buildings);
+
+/* ========================================================= *
+ *  D1. 鸟居（明神鸟居 + 注连绳 / 纸垂 / 神额 / 提灯 / 风铎）
+ * ========================================================= */
+function makeShideGeo(w, h) {
+  const pos = [], idx = [];
+  const n = 4;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const y = -t * h;
+    const xo = (i % 2 ? 1 : -1) * w * 0.40 * (i === 0 || i === n ? 0.15 : 1);
+    const ww = w * (1 - t * 0.18);
+    pos.push(-ww / 2 + xo, y, 0, ww / 2 + xo, y, 0);
+  }
+  for (let i = 0; i < n; i++) {
+    const p0 = i * 2, p1 = p0 + 1, p2 = p0 + 2, p3 = p0 + 3;
+    idx.push(p0, p1, p2, p1, p3, p2);
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+const mossMat = new T.MeshStandardMaterial({ color: new T.Color('#8d6a70'), roughness: 1.0, flatShading: true });
+
+function buildTorii(px, pz, yaw, scl) {
+  const g = new T.Group();
+  const s = scl || 1;
+  const H = 4.1 * s, halfW = 1.42 * s;
+  // 横梁整体上提：笠木顶面齐柱顶
+  const yNuki = 2.42 * s, yGakuC = 2.90 * s, yGakuH = 0.66 * s;
+  const yRope = 3.45 * s, yShimaki = 3.62 * s, yKasagi = 3.94 * s, yCap = 4.06 * s;
+
+  // 柱（略有收分与内倾）
+  [-1, 1].forEach((sgn) => {
+    const pts = [];
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      pts.push(new T.Vector3(sgn * (halfW + 0.06 - 0.10 * t), t * H, 0.02 * sgn * (1 - t)));
+    }
+    const geo = loftTube(pts, 0.185 * s, 0.150 * s, 12, (i, j) => 0.025 * Math.sin(i * 1.7 + j * 2.1));
+    const m = new T.Mesh(geo, M.wood);
+    m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+    // 柱脚石
+    const base = new T.Mesh(roundedBoxGeo(0.52 * s, 0.20 * s, 0.52 * s, 0.06 * s, 3), M.stoneDark);
+    base.position.set(sgn * (halfW + 0.06), 0.06 * s, 0);
+    base.castShadow = true; base.receiveShadow = true;
+    g.add(base);
+    // 石座上的苔痕
+    for (let k = 0; k < 3; k++) {
+      const mo = new T.Mesh(stoneChunk(0.22 * s, 0.07 * s, 0.18 * s, 0.4, 1200 + k), mossMat);
+      mo.position.set(sgn * (halfW + 0.06) + rnd(-0.2, 0.2) * s, 0.17 * s, rnd(-0.2, 0.2) * s);
+      mo.rotation.y = rnd(0, TAU);
+      g.add(mo);
+    }
+    // 藤蔓缠绕
+    for (let v = 0; v < 2; v++) {
+      const vp = [];
+      const y0 = 0.22 + rnd(0, 0.3), y1 = y0 + 0.9 + rnd(0, 0.7);
+      const turns = 1.6 + rnd(0, 1.0), r0 = 0.20 * s;
+      for (let k = 0; k <= 16; k++) {
+        const t = k / 16;
+        const ang = t * turns * TAU + v * 2.1;
+        vp.push(new T.Vector3(
+          sgn * (halfW + 0.06) + Math.cos(ang) * r0,
+          y0 + (y1 - y0) * t,
+          Math.sin(ang) * r0
+        ));
+      }
+      const vm = new T.Mesh(loftTube(vp, 0.014 * s, 0.006 * s, 5), new T.MeshStandardMaterial({
+        color: new T.Color('#7a5a5e'), roughness: 0.98,
+      }));
+      vm.castShadow = true;
+      g.add(vm);
+    }
+  });
+
+  // 贯（下横梁）
+  const nuki = new T.Mesh(curvedBeam(2 * (halfW + 0.30 * s), 0.17 * s, 0.28 * s, 0.015 * s, 0.022 * s, 10), M.woodOld);
+  nuki.position.y = yNuki;
+  nuki.castShadow = true; nuki.receiveShadow = true;
+  g.add(nuki);
+
+  // 额束
+  const gaku = new T.Mesh(roundedBoxGeo(0.30 * s, yGakuH, 0.15 * s, 0.02 * s, 3), M.wood);
+  gaku.position.set(0, yGakuC, 0);
+  gaku.castShadow = true;
+  g.add(gaku);
+
+  // 神额（木牌）
+  [-1, 1].forEach((sz) => {
+    const pl = new T.Mesh(new T.PlaneGeometry(0.40 * s, 0.20 * s), M.plaque);
+    pl.position.set(0, yGakuC - 0.02 * s, sz * 0.082 * s);
+    pl.rotation.y = sz > 0 ? 0 : Math.PI;
+    g.add(pl);
+  });
+
+  // 岛木
+  const shimaki = new T.Mesh(curvedBeam(2 * (halfW + 0.42 * s), 0.30 * s, 0.15 * s, 0.05 * s, 0.018 * s, 16), M.wood);
+  shimaki.position.y = yShimaki;
+  shimaki.castShadow = true;
+  g.add(shimaki);
+
+  // 笠木（顶部微翘）
+  const kasagi = new T.Mesh(curvedBeam(2 * (halfW + 0.58 * s), 0.38 * s, 0.21 * s, 0.20 * s, 0.03 * s, 22), M.woodDark);
+  kasagi.position.y = yKasagi;
+  kasagi.castShadow = true; kasagi.receiveShadow = true;
+  g.add(kasagi);
+
+  const cap = new T.Mesh(roundedBoxGeo(2 * (halfW + 0.58 * s), 0.05 * s, 0.30 * s, 0.018 * s, 2), M.woodDark);
+  cap.position.y = yCap;
+  cap.castShadow = true;
+  g.add(cap);
+
+  /* ---- 注连绳 + 纸垂 ---- */
+  const ropePts = [];
+  const ropeY = yRope, sag = 0.18 * s;
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20;
+    ropePts.push(new T.Vector3(
+      (-1.30 + 2.60 * t) * s,
+      ropeY - Math.sin(t * Math.PI) * sag,
+      Math.sin(t * Math.PI * 3) * 0.02 * s
+    ));
+  }
+  const rope = new T.Mesh(loftTube(ropePts, 0.072 * s, 0.072 * s, 7,
+    (i, j) => 0.16 * Math.sin(i * 2.4 + j * 1.9)), M.rope);
+  rope.castShadow = true;
+  g.add(rope);
+  // 绳上草束
+  for (let i = 0; i < 9; i++) {
+    const t = (i + 0.5) / 9;
+    const x = (-1.30 + 2.60 * t) * s;
+    const y = ropeY - Math.sin(t * Math.PI) * sag - 0.06 * s;
+    const tuft = new T.Mesh(roundedBoxGeo(0.05 * s, 0.14 * s, 0.02 * s, 0.01, 2), M.rope);
+    tuft.position.set(x, y, 0);
+    tuft.rotation.z = rnd(-0.25, 0.25);
+    g.add(tuft);
+  }
+  // 纸垂
+  [-1.02, -0.5, 0, 0.5, 1.02].forEach((xx, i) => {
+    const x = xx * s;
+    const t = (x / s + 1.30) / 2.60;
+    const y = ropeY - Math.sin(t * Math.PI) * sag - 0.15 * s;
+    const sh = new T.Mesh(makeShideGeo(0.105 * s, (0.30 + (i % 2) * 0.07) * s), M.paper);
+    sh.position.set(x, y, 0.07 * s);
+    sh.rotation.z = rnd(-0.08, 0.08);
+    sh.castShadow = true;
+    g.add(sh);
+  });
+
+  /* ---- 提灯 ---- */
+  [-1, 1].forEach((sgn) => {
+    const lx = sgn * 1.06 * s, ly = yNuki + 0.08 * s;
+    const cord = new T.Mesh(roundedBoxGeo(0.012 * s, 0.26 * s, 0.012 * s, 0.004, 1), M.rope);
+    cord.position.set(lx, ly - 0.13 * s, 0.06 * s);
+    g.add(cord);
+    const body = new T.Mesh(new T.SphereGeometry(0.19 * s, 16, 12), M.lanternGlow);
+    body.scale.set(1, 1.28, 1);
+    body.position.set(lx, ly - 0.44 * s, 0.06 * s);
+    body.castShadow = true;
+    g.add(body);
+    const capT = new T.Mesh(roundedBoxGeo(0.13 * s, 0.035 * s, 0.13 * s, 0.008, 2), M.woodDark);
+    capT.position.set(lx, ly - 0.24 * s, 0.06 * s);
+    g.add(capT);
+    const capB = new T.Mesh(roundedBoxGeo(0.11 * s, 0.03 * s, 0.11 * s, 0.008, 2), M.woodDark);
+    capB.position.set(lx, ly - 0.63 * s, 0.06 * s);
+    g.add(capB);
+    // 灯笼上的字条
+    const tag = new T.Mesh(roundedBoxGeo(0.07 * s, 0.20 * s, 0.008 * s, 0.003, 1), M.paper);
+    tag.position.set(lx, ly - 0.86 * s, 0.06 * s);
+    g.add(tag);
+  });
+
+  /* ---- 风铎 ---- */
+  const chimeCord = new T.Mesh(roundedBoxGeo(0.01 * s, 0.30 * s, 0.01 * s, 0.003, 1), M.rope);
+  chimeCord.position.set(-0.72 * s, yNuki - 0.16 * s, 0);
+  g.add(chimeCord);
+  const bell = new T.Mesh(new T.ConeGeometry(0.065 * s, 0.11 * s, 10), M.metal);
+  bell.position.set(-0.72 * s, yNuki - 0.30 * s, 0);
+  bell.rotation.x = Math.PI;
+  bell.castShadow = true;
+  g.add(bell);
+  for (let i = 0; i < 3; i++) {
+    const strip = new T.Mesh(roundedBoxGeo(0.018 * s, 0.18 * s, 0.004 * s, 0.002, 1), M.paper);
+    strip.position.set(-0.72 * s + rnd(-0.03, 0.03) * s, yNuki - 0.50 * s, rnd(-0.03, 0.03) * s);
+    strip.rotation.z = rnd(-0.15, 0.15);
+    g.add(strip);
+  }
+
+  const y = groundH(px, pz);
+  g.position.set(px, y - 0.06, pz);
+  g.rotation.y = yaw;
+  g.rotation.z = 0.012;
+  buildings.add(g);
+  addExclude(px, pz, 1.9 * s);
+  return g;
+}
+
+/* ========================================================= *
+ *  D2. 小祠（妻入り）
+ * ========================================================= */
+function buildShrine(px, pz, yaw) {
+  const g = new T.Group();
+  const W = 3.25, D = 2.45;          // 主体宽 / 深
+
+  // 石基坛（两级）
+  const p1 = new T.Mesh(roundedBoxGeo(W + 0.95, 0.34, D + 0.85, 0.05, 4), M.stone);
+  p1.position.y = 0.17; p1.castShadow = true; p1.receiveShadow = true; g.add(p1);
+  const p2 = new T.Mesh(roundedBoxGeo(W + 0.5, 0.22, D + 0.42, 0.04, 4), M.stoneDark);
+  p2.position.y = 0.44; p2.castShadow = true; p2.receiveShadow = true; g.add(p2);
+
+  const floorY = 0.62;
+  // 木地板
+  const floor = new T.Mesh(roundedBoxGeo(W + 0.16, 0.16, D + 0.16, 0.03, 3), M.woodOld);
+  floor.position.y = floorY; floor.castShadow = true; floor.receiveShadow = true; g.add(floor);
+
+  // 四角柱
+  const pH = 1.72;
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+    const post = new T.Mesh(roundedBoxGeo(0.17, pH, 0.17, 0.022, 3), M.wood);
+    post.position.set(sx * (W / 2 - 0.06), floorY + pH / 2, sz * (D / 2 - 0.06));
+    post.castShadow = true; post.receiveShadow = true; g.add(post);
+  });
+
+  // 墙体：背板 + 两侧板（内凹）
+  const back = new T.Mesh(roundedBoxGeo(W - 0.20, pH - 0.12, 0.10, 0.02, 3), M.plaster);
+  back.position.set(0, floorY + pH / 2, -D / 2 + 0.10);
+  back.castShadow = true; back.receiveShadow = true; g.add(back);
+
+  [-1, 1].forEach((sx) => {
+    const side = new T.Mesh(roundedBoxGeo(0.10, pH - 0.12, D - 0.36, 0.02, 3), M.plaster);
+    side.position.set(sx * (W / 2 - 0.10), floorY + pH / 2, 0);
+    side.castShadow = true; side.receiveShadow = true; g.add(side);
+  });
+
+  // 正面：格栅门两扇 + 框架
+  const doorW = (W - 0.5) / 2, doorH = pH - 0.30;
+  [-1, 1].forEach((sx) => {
+    const dg = new T.Group();
+    const fr = new T.Mesh(roundedBoxGeo(doorW, doorH, 0.05, 0.014, 2), M.woodDark);
+    fr.castShadow = true; dg.add(fr);
+    const inner = new T.Mesh(roundedBoxGeo(doorW - 0.14, doorH - 0.14, 0.03, 0.008, 2), M.paper);
+    inner.position.z = 0.02; dg.add(inner);
+    // 格栅
+    for (let i = 0; i < 4; i++) {
+      const bar = new T.Mesh(roundedBoxGeo(0.022, doorH - 0.16, 0.028, 0.006, 2), M.wood);
+      bar.position.set(-doorW / 2 + 0.1 + i * ((doorW - 0.2) / 3), 0, 0.045);
+      dg.add(bar);
+    }
+    for (let i = 0; i < 5; i++) {
+      const bar = new T.Mesh(roundedBoxGeo(doorW - 0.14, 0.022, 0.028, 0.006, 2), M.wood);
+      bar.position.set(0, -doorH / 2 + 0.1 + i * ((doorH - 0.2) / 4), 0.045);
+      dg.add(bar);
+    }
+    dg.position.set(sx * (doorW / 2 + 0.13), floorY + pH / 2 - 0.02, D / 2 - 0.06);
+    g.add(dg);
+  });
+
+  // 头贯（前后横梁）
+  [-1, 1].forEach((sz) => {
+    const beam = new T.Mesh(roundedBoxGeo(W + 0.30, 0.15, 0.13, 0.02, 3), M.wood);
+    beam.position.set(0, floorY + pH + 0.03, sz * (D / 2 - 0.05));
+    beam.castShadow = true; g.add(beam);
+  });
+  // 侧向梁
+  [-1, 1].forEach((sx) => {
+    const beam = new T.Mesh(roundedBoxGeo(0.13, 0.13, D + 0.22, 0.02, 3), M.wood);
+    beam.position.set(sx * (W / 2 - 0.05), floorY + pH + 0.03, 0);
+    beam.castShadow = true; g.add(beam);
+  });
+
+  // 屋顶（脊沿 X → 旋转 90°，使山面朝前）
+  const roof = new T.Mesh(makeRoof(4.55, 4.05, 1.02, 0.17, 0.15, 24, 10), M.roof);
+  roof.position.y = floorY + pH + 0.20;
+  roof.castShadow = true; roof.receiveShadow = true;
+  roof.rotation.y = Math.PI / 2;
+  g.add(roof);
+
+  // 山面三角（前后两片）
+  [-1, 1].forEach((sz) => {
+    const tri = new T.BufferGeometry();
+    const yBot = floorY + pH + 0.20;
+    const yTop = yBot + 0.99;
+    const w = 3.94;
+    const v = [
+      -w / 2, yBot, 0, w / 2, yBot, 0, 0, yTop + 0.02, 0,
+    ];
+    tri.setAttribute('position', new T.Float32BufferAttribute(v, 3));
+    tri.setIndex([0, 1, 2]);
+    tri.computeVertexNormals();
+    const m = new T.Mesh(tri, new T.MeshStandardMaterial({ color: new T.Color('#e8d3d9'), roughness: 0.95, side: T.DoubleSide }));
+    m.position.z = sz * 2.21;
+    m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+    // 破风板（沿山面斜边）
+    const L = Math.hypot(w / 2, yTop - yBot);
+    [-1, 1].forEach((sx) => {
+      const bb = new T.Mesh(roundedBoxGeo(L, 0.09, 0.08, 0.018, 2), M.woodDark);
+      bb.position.set(sx * w / 4, yBot + (yTop - yBot) / 2, sz * 2.24);
+      bb.rotation.z = -sx * Math.atan2(yTop - yBot, w / 2);
+      bb.castShadow = true;
+      g.add(bb);
+    });
+  });
+
+  // 脊梁 + 鬼瓦
+  const ridge = new T.Mesh(roundedBoxGeo(0.16, 0.17, 3.9, 0.03, 3), M.woodDark);
+  ridge.position.set(0, floorY + pH + 0.24 + 1.06, 0);
+  ridge.castShadow = true; g.add(ridge);
+  [-1, 1].forEach((sz) => {
+    const oni = new T.Mesh(roundedBoxGeo(0.22, 0.30, 0.16, 0.035, 3), M.woodDark);
+    oni.position.set(0, floorY + pH + 0.24 + 1.10, sz * 1.92);
+    oni.rotation.x = 0.12 * sz;
+    oni.castShadow = true; g.add(oni);
+  });
+
+  // 注连绳 + 纸垂
+  const ropePts = [];
+  for (let i = 0; i <= 12; i++) {
+    const t = i / 12;
+    ropePts.push(new T.Vector3(-1.35 + 2.7 * t, floorY + pH - 0.06 - 0.16 * Math.sin(t * Math.PI), D / 2 + 0.04));
+  }
+  const rope = new T.Mesh(loftTube(ropePts, 0.038, 0.038, 6, (i, j) => 0.14 * Math.sin(i * 2.3 + j)), M.paper);
+  rope.castShadow = true; g.add(rope);
+  [-0.75, 0, 0.75].forEach((x, i) => {
+    for (let k = 0; k < 3; k++) {
+      const sh = new T.Mesh(roundedBoxGeo(0.16, 0.16, 0.012, 0.005, 1), M.paper);
+      sh.position.set(x + (k % 2 ? 0.045 : -0.045), floorY + pH - 0.22 - k * 0.15, D / 2 + 0.09);
+      sh.rotation.z = (k % 2 ? 1 : -1) * 0.12;
+      g.add(sh);
+    }
+  });
+
+  // 前端台阶（三级）
+  for (let i = 0; i < 3; i++) {
+    const st = new T.Mesh(roundedBoxGeo(1.5 - i * 0.1, 0.14, 0.42, 0.035, 3), M.stone);
+    st.position.set(0, 0.07 + (2 - i) * 0.14, D / 2 + 0.62 + i * 0.34);
+    st.castShadow = true; st.receiveShadow = true; g.add(st);
+  }
+
+  // 赛钱箱
+  const box = new T.Mesh(roundedBoxGeo(0.78, 0.42, 0.46, 0.035, 3), M.woodOld);
+  box.position.set(0, 0.21, D / 2 + 1.15);
+  box.castShadow = true; box.receiveShadow = true; g.add(box);
+  for (let i = 0; i < 4; i++) {
+    const sl = new T.Mesh(roundedBoxGeo(0.66, 0.03, 0.06, 0.008, 1), M.woodDark);
+    sl.position.set(0, 0.44, D / 2 + 0.99 + i * 0.09);
+    g.add(sl);
+  }
+
+  const y = groundH(px, pz);
+  g.position.set(px, y - 0.10, pz);
+  g.rotation.y = yaw;
+  buildings.add(g);
+  addExclude(px, pz, 3.1);
+  return g;
+}
+
+/* ========================================================= *
+ *  D3. 石灯笼
+ * ========================================================= */
+function hexPrism(r, h, seg) {
+  const g = new T.CylinderGeometry(r, r, h, seg || 6, 1, false);
+  g.translate(0, h / 2, 0);
+  return g;
+}
+function buildLantern(px, pz, scl, rot) {
+  const g = new T.Group();
+  const s = scl || 1;
+  const seg = 6;
+  const add = (geo, mat, y) => {
+    const m = new T.Mesh(geo, mat);
+    m.position.y = y; m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+  };
+  add(new T.CylinderGeometry(0.36 * s, 0.40 * s, 0.16 * s, seg), M.stoneDark, 0.08 * s); // 基础
+  add(new T.CylinderGeometry(0.20 * s, 0.26 * s, 0.14 * s, seg, 1), M.stone, 0.23 * s);
+  add(new T.CylinderGeometry(0.13 * s, 0.16 * s, 0.82 * s, seg, 1), M.stone, 0.71 * s); // 竿
+  add(new T.CylinderGeometry(0.30 * s, 0.20 * s, 0.12 * s, seg, 1), M.stone, 1.18 * s); // 中台
+  // 火袋
+  const fire = add(new T.CylinderGeometry(0.27 * s, 0.27 * s, 0.36 * s, seg, 1), M.stone, 1.42 * s);
+  // 火袋窗口（四向暗格）
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU + Math.PI / 6;
+    const win = new T.Mesh(roundedBoxGeo(0.16 * s, 0.20 * s, 0.05 * s, 0.012, 2), M.woodDark);
+    win.position.set(Math.cos(a) * 0.245 * s, 1.42 * s, Math.sin(a) * 0.245 * s);
+    win.rotation.y = -a + Math.PI / 2;
+    g.add(win);
+  }
+  // 灯火
+  const glow = new T.Mesh(new T.SphereGeometry(0.085 * s, 10, 8), M.lanternGlow);
+  glow.position.y = 1.42 * s;
+  g.add(glow);
+  // 笠（六角，端部微翘）
+  const capPts = [];
+  for (let j = 0; j <= 4; j++) {
+    const t = j / 4;
+    capPts.push([0.44 * s * (1 - t * 0.95), 0.20 * t]);
+  }
+  const capGeo = new T.LatheGeometry(capPts.map((p) => new T.Vector2(p[0], p[1])), 6);
+  const cap = new T.Mesh(capGeo, M.stone);
+  cap.position.y = 1.60 * s;
+  cap.castShadow = true; cap.rotation.y = Math.PI / 6;
+  g.add(cap);
+  // 宝珠
+  const orb = new T.Mesh(new T.SphereGeometry(0.075 * s, 10, 8), M.stone);
+  orb.position.y = 1.86 * s; orb.castShadow = true; g.add(orb);
+  const tip = new T.Mesh(new T.ConeGeometry(0.045 * s, 0.10 * s, 6), M.stone);
+  tip.position.y = 1.95 * s; g.add(tip);
+
+  const y = groundH(px, pz);
+  g.position.set(px, y - 0.02, pz);
+  g.rotation.y = rot || 0;
+  g.rotation.z = 0.01;
+  buildings.add(g);
+  addExclude(px, pz, 0.62 * s);
+  return { group: g, glow };
+}
+
+/* ========================================================= *
+ *  D4. 参道石板
+ * ========================================================= */
+const PATH_PTS = [
+  new T.Vector3(7.6, 0, 9.4), new T.Vector3(5.9, 0, 6.9), new T.Vector3(4.3, 0, 4.4), new T.Vector3(2.6, 0, 1.9),
+  new T.Vector3(0.9, 0, -0.8), new T.Vector3(-0.7, 0, -3.4), new T.Vector3(-2.1, 0, -5.6),
+];
+const pathCurve = new T.CatmullRomCurve3(PATH_PTS, false, 'catmullrom', 0.4);
+const PATH_SAMPLES = [];
+for (let i = 0; i <= 42; i++) PATH_SAMPLES.push(pathCurve.getPointAt(i / 42));
+
+function buildPath() {
+  const g = new T.Group();
+  const r = mulberry32(1234);
+  const mat = M.stone, mat2 = M.stoneDark;
+  let idx = 0;
+  for (let t = 0.015; t < 0.995; t += 0.052) {
+    const p = pathCurve.getPointAt(t);
+    const tan = pathCurve.getTangentAt(t);
+    const n = new T.Vector3(-tan.z, 0, tan.x).normalize();
+    const off = (r() - 0.5) * 0.34;
+    const w = 0.46 + r() * 0.30, d = 0.34 + r() * 0.20;
+    const geo = roundedBoxGeo(w, 0.09 + r() * 0.04, d, 0.028, 3);
+    const m = new T.Mesh(geo, r() > 0.7 ? mat2 : mat);
+    const yy = groundH(p.x + n.x * off, p.z + n.z * off);
+    m.position.set(p.x + n.x * off, yy - 0.015, p.z + n.z * off);
+    m.rotation.y = Math.atan2(tan.x, tan.z) + (r() - 0.5) * 0.5;
+    m.rotation.z = (r() - 0.5) * 0.05;
+    m.rotation.x = (r() - 0.5) * 0.04;
+    m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+    idx++;
+  }
+  // 两侧碎石
+  for (let i = 0; i < 26; i++) {
+    const t = r();
+    const p = pathCurve.getPointAt(t);
+    const tan = pathCurve.getTangentAt(t);
+    const n = new T.Vector3(-tan.z, 0, tan.x).normalize();
+    const off = (r() > 0.5 ? 1 : -1) * (0.62 + r() * 0.7);
+    const s = 0.08 + r() * 0.13;
+    const m = new T.Mesh(stoneChunk(s * 1.4, s, s * 1.2, 0.3, 900 + i), mat2);
+    const yy = groundH(p.x + n.x * off, p.z + n.z * off);
+    m.position.set(p.x + n.x * off, yy + s * 0.15, p.z + n.z * off);
+    m.rotation.y = r() * TAU;
+    m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+  }
+  return g;
+}
+buildings.add(buildPath());
+
+/* ========================================================= *
+ *  D5. 遗迹：断柱 / 倒梁 / 石阶 / 矮墙 / 水钵
+ * ========================================================= */
+function buildRuins() {
+  const g = new T.Group();
+  const r = mulberry32(6060);
+
+  // 断柱三根
+  const pillars = [[6.4, -6.2, 0.16, 2.0], [7.9, -4.6, 0.14, 1.25], [5.2, -7.6, 0.13, 0.75]];
+  pillars.forEach(([x, z, rad, hh], i) => {
+    const y0 = groundH(x, z);
+    const pts = [];
+    const n = 7;
+    for (let k = 0; k < n; k++) {
+      const t = k / (n - 1);
+      pts.push(new T.Vector3(x + Math.sin(t * 2 + i) * 0.03, y0 - 0.15 + hh * t, z + Math.cos(t * 2.4 + i) * 0.03));
+    }
+    const geo = loftTube(pts, rad * 1.06, rad * 0.96, 9, (q, j) => 0.03 * Math.sin(q * 1.3 + j * 2.7 + i));
+    const m = new T.Mesh(geo, i % 2 ? M.stone : M.stoneDark);
+    m.castShadow = true; m.receiveShadow = true; g.add(m);
+    // 断口碎石
+    const ch = new T.Mesh(stoneChunk(rad * 2.0, rad * 0.9, rad * 1.7, 0.35, 700 + i), M.stoneDark);
+    ch.position.set(x + rad * 1.4, y0 + rad * 0.2, z + rad * 0.9);
+    ch.rotation.set(r(), r() * TAU, r() * 0.3);
+    ch.castShadow = true; g.add(ch);
+    addExclude(x, z, rad * 2.2);
+  });
+
+  // 倒塌木梁
+  const beam = new T.Mesh(roundedBoxGeo(2.9, 0.20, 0.26, 0.03, 3), M.woodOld);
+  const bx = 5.0, bz = -3.4, by = groundH(bx, bz);
+  beam.position.set(bx, by + 0.14, bz);
+  beam.rotation.set(0.06, 0.9, 0.05);
+  beam.castShadow = true; beam.receiveShadow = true; g.add(beam);
+  addExclude(bx, bz, 1.5);
+
+  // 断裂台阶
+  for (let i = 0; i < 3; i++) {
+    const st = new T.Mesh(roundedBoxGeo(1.6 - i * 0.14, 0.16, 0.5, 0.03, 3), i === 2 ? M.stoneDark : M.stone);
+    const sx = -6.9 + i * 0.06, sz = -1.2 + i * 0.52;
+    st.position.set(sx, groundH(sx, sz) + 0.06, sz);
+    st.rotation.y = 0.28 + (r() - 0.5) * 0.06;
+    st.rotation.z = (r() - 0.5) * 0.04;
+    st.castShadow = true; st.receiveShadow = true; g.add(st);
+  }
+  addExclude(-6.8, -0.3, 1.4);
+
+  // 矮石墙（几块堆叠）
+  const wallX = -9.2, wallZ = -4.2;
+  for (let i = 0; i < 9; i++) {
+    const t = i / 8;
+    const x = wallX + t * 3.4, z = wallZ + Math.sin(t * 2.2) * 0.55;
+    const y0 = groundH(x, z);
+    const hh = 0.24 + r() * 0.34;
+    const m = new T.Mesh(stoneChunk(0.6 + r() * 0.5, hh, 0.44 + r() * 0.2, 0.18, 800 + i), i % 3 ? M.stone : M.stoneDark);
+    m.position.set(x, y0 + hh * 0.30, z);
+    m.rotation.y = r() * TAU;
+    m.rotation.z = (r() - 0.5) * 0.18;
+    m.castShadow = true; m.receiveShadow = true; g.add(m);
+    if (i === 3 || i === 6) {
+      const m2 = new T.Mesh(stoneChunk(0.5, 0.22, 0.4, 0.2, 850 + i), M.stone);
+      m2.position.set(x + 0.05, y0 + hh * 0.75, z);
+      m2.rotation.y = r() * TAU;
+      m2.castShadow = true; g.add(m2);
+    }
+  }
+  addExclude(-8.0, -4.0, 2.2);
+
+  // 手水钵
+  const bxz = [1.7, 9.0];
+  const byg = groundH(bxz[0], bxz[1]);
+  const basinOuter = new T.Mesh(new T.CylinderGeometry(0.46, 0.40, 0.42, 8, 1), M.stone);
+  basinOuter.position.set(bxz[0], byg + 0.21, bxz[1]);
+  basinOuter.castShadow = true; basinOuter.receiveShadow = true; g.add(basinOuter);
+  const basinInner = new T.Mesh(new T.CylinderGeometry(0.36, 0.34, 0.34, 8, 1), new T.MeshStandardMaterial({ color: new T.Color('#6d5563'), roughness: 0.9 }));
+  basinInner.position.set(bxz[0], byg + 0.27, bxz[1]);
+  g.add(basinInner);
+  addExclude(bxz[0], bxz[1], 0.9);
+
+  return g;
+}
+buildings.add(buildRuins());
+
+/* ========================================================= *
+ *  D6. 崖边观景台（缘侧）
+ * ========================================================= */
+function buildDeck(px, pz, yaw) {
+  const g = new T.Group();
+  const W = 3.4, D = 2.3;
+  const y0 = groundH(px, pz);
+  const deckY = y0 + 0.52;
+
+  // 甲板（横向板条）
+  for (let i = 0; i < 8; i++) {
+    const pl = new T.Mesh(roundedBoxGeo(W - 0.1, 0.09, D / 8 - 0.035, 0.012, 2), M.woodOld);
+    pl.position.set(0, deckY, -D / 2 + (i + 0.5) * (D / 8));
+    pl.castShadow = true; pl.receiveShadow = true;
+    g.add(pl);
+  }
+  // 龙骨
+  [-1, 1].forEach((sx) => {
+    const j = new T.Mesh(roundedBoxGeo(0.14, 0.16, D, 0.02, 2), M.woodDark);
+    j.position.set(sx * (W / 2 - 0.12), deckY - 0.12, 0);
+    j.castShadow = true; g.add(j);
+  });
+  // 支柱（落到地面以下）
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+    const h = 1.5;
+    const p = new T.Mesh(roundedBoxGeo(0.16, h, 0.16, 0.02, 2), M.wood);
+    p.position.set(sx * (W / 2 - 0.16), deckY - h / 2 - 0.07, sz * (D / 2 - 0.16));
+    p.castShadow = true; g.add(p);
+  });
+  // 栏杆（外侧 + 两侧）
+  const railY = deckY + 0.82;
+  const railGeo = roundedBoxGeo(W, 0.10, 0.10, 0.02, 2);
+  const rail = new T.Mesh(railGeo, M.wood);
+  rail.position.set(0, railY, -D / 2 + 0.08);
+  rail.castShadow = true; g.add(rail);
+  const rail2 = new T.Mesh(roundedBoxGeo(W, 0.07, 0.07, 0.015, 2), M.wood);
+  rail2.position.set(0, railY - 0.34, -D / 2 + 0.08);
+  g.add(rail2);
+  for (let i = 0; i < 7; i++) {
+    const post = new T.Mesh(roundedBoxGeo(0.055, 0.86, 0.055, 0.012, 2), M.wood);
+    post.position.set(-W / 2 + 0.12 + i * ((W - 0.24) / 6), deckY + 0.44, -D / 2 + 0.08);
+    post.castShadow = true; g.add(post);
+  }
+  [-1, 1].forEach((sx) => {
+    const r2 = new T.Mesh(roundedBoxGeo(0.09, 0.09, D - 0.1, 0.018, 2), M.wood);
+    r2.position.set(sx * (W / 2 - 0.06), railY, 0.02);
+    r2.castShadow = true; g.add(r2);
+    const post = new T.Mesh(roundedBoxGeo(0.11, 1.0, 0.11, 0.02, 2), M.wood);
+    post.position.set(sx * (W / 2 - 0.06), deckY + 0.5, -D / 2 + 0.08);
+    g.add(post);
+  });
+
+  // 边缘垂下的绳与木牌
+  const ropePts = [];
+  for (let i = 0; i <= 5; i++) {
+    const t = i / 5;
+    ropePts.push(new T.Vector3(W / 2 - 0.06, deckY + 0.05 - t * 0.45, -D / 2 + 0.1 + Math.sin(t * 3) * 0.04));
+  }
+  g.add(new T.Mesh(loftTube(ropePts, 0.02, 0.015, 5), M.paper));
+
+  g.position.set(px, 0, pz);
+  g.rotation.y = yaw;
+  buildings.add(g);
+  addExclude(px, pz, 2.2);
+  return g;
+}
+
+/* ========================================================= *
+ *  布点
+ * ========================================================= */
+const TORII = buildTorii(6.55, 8.05, 0.61, 1.0);
+const SHRINE = buildShrine(-3.9, -7.8, 0.62);
+const L1 = buildLantern(3.35, 3.55, 1.0, 0.4);
+const L2 = buildLantern(-0.15, -2.4, 0.86, 2.3);
+buildDeck(2.6, 13.15, 3.33);
+scene.add(buildOutcrops());
+/* =========================================================================
+   C. 植被：草 / 花 / 樱树 / 落花
+   ========================================================================= */
+
+/* ---------- 是否避让 ---------- */
+function excluded(x, z, pad) {
+  pad = pad || 0;
+  for (let i = 0; i < EXCLUDE.length; i++) {
+    const e = EXCLUDE[i];
+    const dx = x - e.x, dz = z - e.z;
+    if (dx * dx + dz * dz < (e.r + pad) * (e.r + pad)) return true;
+  }
+  return false;
+}
+function nearPath(x, z, pad) {
+  let best = 1e9;
+  for (let i = 0; i < PATH_SAMPLES.length; i++) {
+    const p = PATH_SAMPLES[i];
+    const dx = x - p.x, dz = z - p.z;
+    const d = dx * dx + dz * dz;
+    if (d < best) best = d;
+  }
+  return best < pad * pad;
+}
+
+/* ========================================================================
+   C1. 草：一簇多叶的草丛（实例化 + 顶点风场）
+   ======================================================================== */
+function makeTuftGeo(nb, segs, seed) {
+  const pos = [], idx = [], cols = [];
+  const r = mulberry32(seed || 7);
+  const W0 = 0.030;
+  for (let b = 0; b < nb; b++) {
+    const oa = r() * TAU, orr = Math.pow(r(), 0.6) * 0.085;
+    const ox = Math.cos(oa) * orr, oz = Math.sin(oa) * orr;
+    const yaw = r() * TAU;
+    const lean = 0.12 + r() * 0.45;
+    const hh = 0.72 + r() * 0.55;
+    const dx = Math.cos(yaw), dz = Math.sin(yaw);
+    const px = -dz, pz = dx;
+    const base = pos.length / 3;
+    for (let i = 0; i <= segs; i++) {
+      const t = i / segs;
+      const w = W0 * Math.pow(1 - t, 0.45) + 0.0026;
+      const bend = Math.pow(t, 1.9) * 0.34 * lean;
+      const cx = ox + dx * bend, cz = oz + dz * bend, cy = t * hh;
+      pos.push(cx - px * w, cy, cz - pz * w, cx + px * w, cy, cz + pz * w);
+      const c = 0.60 + 0.52 * Math.pow(t, 0.5);
+      cols.push(c, c, c, c, c, c);
+    }
+    for (let i = 0; i < segs; i++) {
+      const a = base + i * 2, bq = a + 1, c2 = a + 2, d = a + 3;
+      idx.push(a, bq, c2, bq, d, c2);
+    }
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new T.Float32BufferAttribute(cols, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const nrm = g.attributes.normal;
+  const v = new T.Vector3();
+  for (let i = 0; i < nrm.count; i++) {
+    v.set(nrm.getX(i) * 0.42, 1.0, nrm.getZ(i) * 0.42).normalize();
+    nrm.setXYZ(i, v.x, v.y, v.z);
+  }
+  return g;
+}
+
+const grassMat = new T.MeshStandardMaterial({
+  color: new T.Color(PAL.grass), vertexColors: true, side: T.DoubleSide,
+  roughness: 0.88, metalness: 0.0,
+});
+windifyGrass(grassMat);
+
+const GRASS = [];
+function addTuft(x, z, h, yaw, tilt) {
+  if (GRASS.length > 15000) return;
+  GRASS.push({ x, z, h, yaw: yaw === undefined ? rnd(0, TAU) : yaw, phase: rnd(0, TAU), tilt: tilt || 0 });
+}
+
+function buildGrass() {
+  RNG = mulberry32(90901);
+
+  /* 1) 边缘草丛带：茂密、朝外披挂 */
+  for (let i = 0; i < 7200; i++) {
+    const a = rnd(0, TAU);
+    const R = islandRadius(a);
+    const rn = 0.902 + Math.pow(rnd(0, 1), 0.5) * 0.108;
+    const r = rn * R;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (excluded(x, z, 0.1)) continue;
+    const h = (0.54 + Math.pow(rnd(0, 1), 1.2) * 0.70);
+    const out = smoothstep(0.93, 1.0, rn);
+    addTuft(x, z, h, a + Math.PI * 0.5 + rnd(-0.5, 0.5), out * rnd(0.6, 1.15));
+  }
+
+  /* 2) 岛内草坪：成组草簇，留出厚涂地面 */
+  let tries = 0, groups = 0;
+  while (groups < 620 && tries < 40000) {
+    tries++;
+    const a = rnd(0, TAU);
+    const R = islandRadius(a) * 0.875;
+    const r = Math.sqrt(rnd(0, 1)) * R;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const density = fbm(x * 0.20 + 11, z * 0.20 - 4, 3, 55);
+    if (rnd(0, 1) > 0.30 + density * 0.95) continue;
+    if (excluded(x, z, 0.12)) continue;
+    if (nearPath(x, z, 0.85)) continue;
+    groups++;
+    const n = 2 + Math.floor(rnd(0, 0.99) * 4);
+    const gs = 0.34 + rnd(0, 0.30);
+    for (let k = 0; k < n; k++) {
+      const aa = rnd(0, TAU), rr = Math.sqrt(rnd(0, 1)) * gs;
+      const bx = x + Math.cos(aa) * rr, bz = z + Math.sin(aa) * rr;
+      if (excluded(bx, bz, 0.06)) continue;
+      addTuft(bx, bz, 0.26 + Math.pow(rnd(0, 1), 1.4) * 0.42);
+    }
+  }
+
+  /* 3) 树根与石边丛草 */
+  TREE_SPOTS.forEach((t) => {
+    for (let i = 0; i < 260; i++) {
+      const a = rnd(0, TAU), r = Math.sqrt(rnd(0, 1)) * 1.5 * t.s;
+      const x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r;
+      if (excluded(x, z, 0.05)) continue;
+      addTuft(x, z, 0.26 + rnd(0, 0.34));
+    }
+  });
+
+  const geo = makeTuftGeo(6, 4, 3131);
+  const rotArr = new Float32Array(GRASS.length);
+  const phArr = new Float32Array(GRASS.length);
+  const mesh = new T.InstancedMesh(geo, grassMat, GRASS.length);
+  mesh.instanceMatrix.setUsage(T.StaticDrawUsage);
+  const m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), sc = new T.Vector3(), pv = new T.Vector3();
+  const col = new T.Color();
+  for (let i = 0; i < GRASS.length; i++) {
+    const b = GRASS[i];
+    const y = groundH(b.x, b.z) - 0.04 - b.tilt * 0.05;
+    pv.set(b.x, y, b.z);
+    e.set(-b.tilt * 0.55, b.yaw, 0, 'YXZ');
+    q.setFromEuler(e);
+    const w = 0.62 + b.h * 0.55;
+    sc.set(w, b.h, w);
+    m4.compose(pv, q, sc);
+    mesh.setMatrixAt(i, m4);
+    rotArr[i] = b.yaw;
+    phArr[i] = b.phase;
+    const tone = 0.72 + Math.pow(hash2(i * 7, i * 13, 3), 1.6) * 0.58;
+    col.setRGB(tone, tone, tone);
+    mesh.setColorAt(i, col);
+  }
+  geo.setAttribute('aRot', new T.InstancedBufferAttribute(rotArr, 1));
+  geo.setAttribute('aPhase', new T.InstancedBufferAttribute(phArr, 1));
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+/* ========================================================================
+   C2. 小花（单色）
+   ======================================================================== */
+function makeFlowerGeo() {
+  const pos = [], idx = [];
+  const push = (v) => { pos.push(v[0], v[1], v[2]); return pos.length / 3 - 1; };
+  // 茎
+  const stemTop = 0.17;
+  const b0 = push([-0.008, 0, 0]), b1 = push([0.008, 0, 0]), b2 = push([0.004, stemTop, 0]), b3 = push([-0.004, stemTop, 0]);
+  idx.push(b0, b1, b2, b0, b2, b3);
+  // 五瓣
+  const headY = stemTop;
+  const petalR = 0.046;
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * TAU + 0.3;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const na = a + Math.PI / 2;
+    const w = 0.030;
+    const c = push([0, headY, 0]);
+    const p1 = push([ca * petalR + Math.cos(na) * w, headY + 0.030, sa * petalR + Math.sin(na) * w]);
+    const p2 = push([ca * petalR * 1.12, headY + 0.014, sa * petalR * 1.12]);
+    const p3 = push([ca * petalR - Math.cos(na) * w, headY + 0.030, sa * petalR - Math.sin(na) * w]);
+    idx.push(c, p1, p2, c, p2, p3);
+  }
+  // 花心
+  const cc = push([0, headY + 0.022, 0]);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * TAU;
+    const b = (i + 1) / 5 * TAU;
+    const q1 = push([Math.cos(a) * 0.022, headY + 0.026, Math.sin(a) * 0.022]);
+    const q2 = push([Math.cos(b) * 0.022, headY + 0.026, Math.sin(b) * 0.022]);
+    idx.push(cc, q1, q2);
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+function buildFlowers() {
+  RNG = mulberry32(4242);
+  const pts = [];
+  let tries = 0;
+  while (pts.length < 1100 && tries < 40000) {
+    tries++;
+    const a = rnd(0, TAU);
+    const R = islandRadius(a) * 0.86;
+    const r = Math.sqrt(rnd(0, 1)) * R;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    // 成片分布
+    const patch = fbm(x * 0.42 - 3, z * 0.42 + 8, 3, 77);
+    if (rnd(0, 1) > Math.pow(patch, 2.2) * 2.1) continue;
+    if (excluded(x, z, 0.15)) continue;
+    if (nearPath(x, z, 1.25)) continue;
+    pts.push({ x, z, s: 0.75 + rnd(0, 0.85) });
+  }
+  const geo = makeFlowerGeo();
+  const mat = new T.MeshStandardMaterial({
+    color: new T.Color('#ffe9f1'), roughness: 0.72, metalness: 0.0, side: T.DoubleSide,
+    emissive: new T.Color('#ffdcea'), emissiveIntensity: 0.0,
+  });
+  windifyGrass(mat);
+  const mesh = new T.InstancedMesh(geo, mat, pts.length);
+  const m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), sc = new T.Vector3(), pv = new T.Vector3();
+  const rotArr = new Float32Array(pts.length), phArr = new Float32Array(pts.length);
+  pts.forEach((p, i) => {
+    pv.set(p.x, groundH(p.x, p.z) - 0.01, p.z);
+    const yaw = rnd(0, TAU);
+    e.set(rnd(-0.09, 0.09), yaw, rnd(-0.09, 0.09), 'YXZ');
+    q.setFromEuler(e);
+    sc.setScalar(p.s);
+    m4.compose(pv, q, sc);
+    mesh.setMatrixAt(i, m4);
+    rotArr[i] = yaw;
+    phArr[i] = rnd(0, TAU);
+  });
+  geo.setAttribute('aRot', new T.InstancedBufferAttribute(rotArr, 1));
+  geo.setAttribute('aPhase', new T.InstancedBufferAttribute(phArr, 1));
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+  return { mesh, mat };
+}
+
+/* ========================================================================
+   C3. 樱花树
+   ======================================================================== */
+const TREE_SPOTS = [];
+const CANOPY_PTS = [];
+const leafVerts = { pos: [], nrm: [], uv: [], idx: [], sway: [], phase: [], col: [] };
+
+function addLeafCard(cx, cy, cz, nx, ny, nz, size, swayV, phase, tone) {
+  tone = tone === undefined ? 1 : tone;
+  const fwd = new T.Vector3(nx, ny, nz).normalize();
+  const upHint = Math.abs(fwd.y) > 0.9 ? new T.Vector3(1, 0, 0) : new T.Vector3(0, 1, 0);
+  const right = new T.Vector3().crossVectors(upHint, fwd).normalize();
+  const up2 = new T.Vector3().crossVectors(fwd, right).normalize();
+  const base = leafVerts.pos.length / 3;
+  const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  for (let k = 0; k < 4; k++) {
+    const sx = corners[k][0] * size * 0.5, sy = corners[k][1] * size * 0.5;
+    const px = cx + right.x * sx + up2.x * sy;
+    const py = cy + right.y * sx + up2.y * sy;
+    const pz = cz + right.z * sx + up2.z * sy;
+    leafVerts.pos.push(px, py, pz);
+    // 球形法线：从团簇中心向外
+    const dx = px - cx, dy = py - cy, dz = pz - cz;
+    const len = Math.hypot(dx, dy, dz) || 1;
+    leafVerts.nrm.push(dx / len * 0.30 + fwd.x * 0.50, dy / len * 0.30 + fwd.y * 0.50 + 0.62, dz / len * 0.30 + fwd.z * 0.50);
+    leafVerts.uv.push(k === 0 || k === 3 ? 0 : 1, k < 2 ? 0 : 1);
+    leafVerts.sway.push(swayV);
+    leafVerts.phase.push(phase);
+    leafVerts.col.push(tone, tone * 0.94, tone * 0.97);
+  }
+  leafVerts.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+}
+
+/* 叶团：带椭球分布 + 破轮廓的散叶 */
+function addCluster(center, radius, dirBias, swayV, r) {
+  const n = 13 + Math.floor(r() * 7);
+  const cph = r() * TAU;
+  const bias = dirBias.clone().normalize();
+  for (let i = 0; i < n; i++) {
+    // 椭球：沿枝方向压扁
+    const th = r() * TAU, ph = Math.acos(2 * r() - 1);
+    let vx = Math.sin(ph) * Math.cos(th), vy = Math.cos(ph), vz = Math.sin(ph) * Math.sin(th);
+    const along = vx * bias.x + vy * bias.y + vz * bias.z;
+    vx -= bias.x * along * 0.45; vy -= bias.y * along * 0.45; vz -= bias.z * along * 0.45;
+    const rr = radius * (0.35 + 0.65 * Math.cbrt(r()));
+    const px = center.x + vx * rr * 1.12;
+    const py = center.y + vy * rr * 0.82;
+    const pz = center.z + vz * rr * 1.12;
+    let nx = vx + (r() - 0.5) * 0.7, ny = vy + (r() - 0.5) * 0.7 + 0.15, nz = vz + (r() - 0.5) * 0.7;
+    const size = radius * (0.72 + r() * 0.55);
+    const tone = 0.72 + Math.pow(r(), 0.8) * 0.55;
+    addLeafCard(px, py, pz, nx, ny, nz, size, swayV, cph + r() * 0.25, tone);
+  }
+  // 破形：1~2 片偏大的散叶伸出去
+  for (let i = 0; i < 2; i++) {
+    const th = r() * TAU, ph = Math.acos(2 * r() - 1);
+    const vx = Math.sin(ph) * Math.cos(th), vy = Math.cos(ph), vz = Math.sin(ph) * Math.sin(th);
+    const rr = radius * (1.16 + r() * 0.26);
+    addLeafCard(
+      center.x + vx * rr, center.y + vy * rr * 0.8, center.z + vz * rr,
+      vx + (r() - 0.5) * 0.5, vy + 0.35, vz + (r() - 0.5) * 0.5,
+      radius * (0.62 + r() * 0.28), swayV * 1.15, cph + r() * 0.25, 0.68 + Math.pow(r(), 1.2) * 0.42
+    );
+  }
+  if (r() < 0.5) CANOPY_PTS.push(center.clone());
+}
+
+function buildSakura(cfg) {
+  RNG = mulberry32(cfg.seed);
+  const r = RNG;
+  const branches = [];
+  const s = cfg.scale || 1;
+  const baseY = cfg.baseY !== undefined ? cfg.baseY : groundH(cfg.x, cfg.z);
+
+  function branchPoints(start, dir, len, bow) {
+    const pts = [];
+    const n = 5;
+    const side = new T.Vector3().crossVectors(dir, new T.Vector3(0, 1, 0));
+    if (side.lengthSq() < 1e-5) side.set(1, 0, 0);
+    side.normalize();
+    const bowV = side.multiplyScalar(bow).add(new T.Vector3(0, bow * 0.45, 0));
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const p = start.clone().addScaledVector(dir, len * t).addScaledVector(bowV, Math.sin(t * Math.PI) * 0.55);
+      pts.push(p);
+    }
+    return pts;
+  }
+
+  function grow(start, dir, len, rad, depth, swayV) {
+    const pts = branchPoints(start, dir, len, (r() - 0.5) * len * 0.30);
+    branches.push({ pts, r0: rad, r1: rad * (depth >= 2 ? 0.55 : 0.68) });
+    const end = pts[pts.length - 1];
+    const endDir = pts[pts.length - 1].clone().sub(pts[pts.length - 2]).normalize();
+
+    if (depth >= cfg.depth) {
+      addCluster(end, cfg.leafR * s * (0.85 + r() * 0.35), endDir, swayV, r);
+      return;
+    }
+
+    // 末级枝干沿途挂叶
+    if (depth >= 2) {
+      const cnt = depth >= 3 ? 2 : 1;
+      for (let i = 0; i < cnt; i++) {
+        const t = 0.55 + i * 0.32;
+        const p = pts[Math.min(pts.length - 1, Math.round(t * (pts.length - 1)))];
+        addCluster(p, cfg.leafR * s * (0.62 + r() * 0.28), endDir, swayV * 0.95, r);
+      }
+    }
+
+    const kids = depth === 0 ? 3 : (r() < 0.72 ? 2 : 3);
+    for (let i = 0; i < kids; i++) {
+      const ang = (depth === 0 ? 0.34 : 0.42) + r() * 0.42;
+      const roll = (i / kids) * TAU + r() * 0.7;
+      let nd = deflect(endDir, ang, roll);
+      // 向上/向外的生长偏好
+      nd.y += cfg.upBias !== undefined ? cfg.upBias : 0.16;
+      if (cfg.weep && depth >= 2) nd.y -= 0.30;
+      nd.normalize();
+      const spawn = depth === 0 ? pts[Math.round(pts.length * (0.55 + r() * 0.25))] : end;
+      grow(spawn, nd, len * (0.66 + r() * 0.18), rad * 0.62, depth + 1, swayV + 0.16);
+    }
+  }
+
+  function deflect(dir, angle, roll) {
+    const up = new T.Vector3(0, 1, 0);
+    let side = new T.Vector3().crossVectors(dir, up);
+    if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+    side.normalize();
+    const fwd = new T.Vector3().crossVectors(side, dir).normalize();
+    const axis = side.clone().multiplyScalar(Math.cos(roll)).addScaledVector(fwd, Math.sin(roll)).normalize();
+    return dir.clone().applyAxisAngle(axis, angle).normalize();
+  }
+
+  // 主干（世界坐标建模，便于叶团与枝干共用同一空间）
+  const startDir = new T.Vector3(cfg.leanX || 0, 1, cfg.leanZ || 0).normalize();
+  const trunkLen = 2.55 * s;
+  grow(new T.Vector3(cfg.x, baseY - 0.05, cfg.z), startDir, trunkLen, 0.30 * s, 0, 0);
+
+  /* 组装枝干网格 */
+  const woodGeo = mergeBranches(branches, baseY, r() * TAU);
+  const woodMat = new T.MeshStandardMaterial({
+    color: new T.Color('#7a5361'), roughness: 0.92, metalness: 0.0, flatShading: true,
+  });
+  windifyFoliage(woodMat, 0.42);
+  const wood = new T.Mesh(woodGeo, woodMat);
+  wood.castShadow = true; wood.receiveShadow = true;
+
+  const grp = new T.Group();
+  grp.add(wood);
+  grp.position.set(0, 0, 0);
+  scene.add(grp);
+
+  // 叶团（全局合并）
+  TREE_SPOTS.push({ x: cfg.x, z: cfg.z, s: s });
+  addExclude(cfg.x, cfg.z, 0.85 * s);
+  return grp;
+}
+
+/* 把若干锥形管合并成一个几何体 */
+function mergeBranches(list, baseY, phase) {
+  const pos = [], idx = [], uv = [];
+  const R = 8;
+  list.forEach((b) => {
+    const pts = b.pts;
+    const n = pts.length;
+    const base = pos.length / 3;
+    const frames = [];
+    for (let i = 0; i < n; i++) {
+      const t = new T.Vector3();
+      if (i === 0) t.subVectors(pts[1], pts[0]);
+      else if (i === n - 1) t.subVectors(pts[n - 1], pts[n - 2]);
+      else t.subVectors(pts[i + 1], pts[i - 1]);
+      t.normalize();
+      let u = new T.Vector3().crossVectors(new T.Vector3(0, 1, 0), t);
+      if (u.lengthSq() < 1e-6) u.crossVectors(new T.Vector3(1, 0, 0), t);
+      u.normalize();
+      const v = new T.Vector3().crossVectors(t, u).normalize();
+      frames.push({ u, v });
+    }
+    for (let i = 0; i < n; i++) {
+      const s = i / (n - 1);
+      const rad = b.r0 + (b.r1 - b.r0) * s;
+      for (let j = 0; j < R; j++) {
+        const a = (j / R) * TAU;
+        const k = 1 + 0.07 * Math.sin(i * 2.3 + j * 1.7);
+        const p = pts[i].clone()
+          .addScaledVector(frames[i].u, Math.cos(a) * rad * k)
+          .addScaledVector(frames[i].v, Math.sin(a) * rad * k);
+        pos.push(p.x, p.y, p.z);
+        uv.push(j / R, s);
+      }
+    }
+    for (let i = 0; i < n - 1; i++) {
+      for (let j = 0; j < R; j++) {
+        const a = base + i * R + j, bq = base + i * R + ((j + 1) % R);
+        const c = base + (i + 1) * R + j, d = base + (i + 1) * R + ((j + 1) % R);
+        idx.push(a, bq, c, bq, d, c);
+      }
+    }
+  });
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+  const swayArr = new Float32Array(pos.length / 3);
+  const phArr = new Float32Array(pos.length / 3);
+  for (let i = 0; i < swayArr.length; i++) {
+    const y = pos[i * 3 + 1];
+    swayArr[i] = Math.pow(clamp((y - baseY) / 6.5, 0, 1), 1.5) * 0.85;
+    phArr[i] = phase || 0;
+  }
+  g.setAttribute('aSway', new T.Float32BufferAttribute(swayArr, 1));
+  g.setAttribute('aPhase', new T.Float32BufferAttribute(phArr, 1));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/* 垂枝櫻：从枝端垂下的花串 */
+function addWeepStrand(start, dir, len, swayV, r, s) {
+  const out = dir.clone(); out.y = 0;
+  if (out.lengthSq() < 1e-5) out.set(1, 0, 0);
+  out.normalize();
+  const pts = [];
+  const n = 4;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    pts.push(new T.Vector3(
+      start.x + out.x * len * 0.35 * Math.sin(t * 1.1) + (r() - 0.5) * 0.1,
+      start.y + len * 0.10 * Math.sin(t * 2.2) - len * Math.pow(t, 1.4) * 0.92,
+      start.z + out.z * len * 0.35 * Math.sin(t * 1.1) + (r() - 0.5) * 0.1
+    ));
+  }
+  WEEP_BRANCHES.push({ pts, r0: 0.035 * s, r1: 0.012 * s });
+  for (let i = 1; i <= n; i++) {
+    const p = pts[i];
+    addCluster(p, 0.30 * s * (0.8 + r() * 0.4), new T.Vector3(out.x * 0.3, -1, out.z * 0.3), swayV * (1 + i * 0.25), r);
+  }
+}
+const WEEP_BRANCHES = [];
+
+/* ---------- 建立树木 ---------- */
+function plantTrees() {
+  const configs = [
+    { x: -8.6, z: 1.2, scale: 1.26, seed: 101, depth: 4, leafR: 0.70, leanX: 0.16, leanZ: 0.10, upBias: 0.14 },
+    { x: 3.6, z: -9.6, scale: 1.06, seed: 202, depth: 4, leafR: 0.66, leanX: -0.12, leanZ: 0.08, upBias: 0.16 },
+    { x: 9.2, z: -3.4, scale: 0.76, seed: 303, depth: 3, leafR: 0.62, leanX: -0.2, leanZ: -0.1, upBias: 0.2 },
+  ];
+  configs.forEach((c) => buildSakura(c));
+
+  // 垂枝櫻（单独处理，便于加花串）
+  RNG = mulberry32(404);
+  const r = RNG;
+  const wx = -9.6, wz = -6.4, ws = 1.05;
+  const baseY = groundH(wx, wz);
+  const br = [];
+  function wgrow(start, dir, len, rad, depth, swayV) {
+    const pts = [];
+    for (let i = 0; i <= 4; i++) {
+      const t = i / 4;
+      pts.push(start.clone().addScaledVector(dir, len * t).add(new T.Vector3(0, -len * 0.10 * t * t, 0)));
+    }
+    br.push({ pts, r0: rad, r1: rad * 0.6 });
+    const end = pts[4];
+    const ed = pts[4].clone().sub(pts[3]).normalize();
+    if (depth >= 2) {
+      const n = 3;
+      for (let i = 0; i < n; i++) {
+        const a = r() * TAU, rr = 0.5 + r() * 0.8;
+        addWeepStrand(
+          end.clone().add(new T.Vector3(Math.cos(a) * rr, 0, Math.sin(a) * rr)),
+          ed, (1.1 + r() * 0.9) * ws, swayV, r, ws
+        );
+      }
+    }
+    if (depth >= 3) return;
+    const kids = depth === 0 ? 4 : 2;
+    for (let i = 0; i < kids; i++) {
+      const roll = (i / kids) * TAU + r() * 0.8;
+      const up = new T.Vector3(0, 1, 0);
+      let side = new T.Vector3().crossVectors(ed, up).normalize();
+      const fwd = new T.Vector3().crossVectors(side, ed).normalize();
+      const axis = side.clone().multiplyScalar(Math.cos(roll)).addScaledVector(fwd, Math.sin(roll)).normalize();
+      const nd = ed.clone().applyAxisAngle(axis, 0.5 + r() * 0.35);
+      nd.y += 0.12;
+      nd.normalize();
+      wgrow(depth === 0 ? pts[1 + Math.floor(r() * 2)] : end, nd, len * 0.72, rad * 0.62, depth + 1, swayV + 0.2);
+    }
+  }
+  wgrow(new T.Vector3(wx, baseY - 0.05, wz), new T.Vector3(0.18, 1, 0.1).normalize(), 2.4 * ws, 0.26 * ws, 0, 0);
+  const wgeo = mergeBranches(br.concat(WEEP_BRANCHES), baseY, r() * TAU);
+  const wMat = new T.MeshStandardMaterial({ color: new T.Color('#7a5361'), roughness: 0.92, flatShading: true });
+  windifyFoliage(wMat, 0.5);
+  const wmesh = new T.Mesh(wgeo, wMat);
+  wmesh.castShadow = true; wmesh.receiveShadow = true;
+  const wgrp = new T.Group();
+  wgrp.add(wmesh);
+  scene.add(wgrp);
+  TREE_SPOTS.push({ x: wx, z: wz, s: ws });
+  addExclude(wx, wz, 0.9 * ws);
+}
+
+/* ---------- 叶团网格 ---------- */
+function buildFoliageMesh() {
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(leafVerts.pos, 3));
+  g.setAttribute('normal', new T.Float32BufferAttribute(leafVerts.nrm, 3));
+  g.setAttribute('uv', new T.Float32BufferAttribute(leafVerts.uv, 2));
+  g.setAttribute('aSway', new T.Float32BufferAttribute(leafVerts.sway, 1));
+  g.setAttribute('aPhase', new T.Float32BufferAttribute(leafVerts.phase, 1));
+  g.setAttribute('color', new T.Float32BufferAttribute(leafVerts.col, 3));
+  g.setIndex(leafVerts.idx);
+  const norm = g.attributes.normal;
+  for (let i = 0; i < norm.count; i++) {
+    const v = new T.Vector3(norm.getX(i), norm.getY(i), norm.getZ(i)).normalize();
+    norm.setXYZ(i, v.x, v.y, v.z);
+  }
+  const mat = new T.MeshStandardMaterial({
+    map: TEX.blossom, color: new T.Color(PAL.blossom),
+    alphaTest: 0.42, side: T.DoubleSide, roughness: 0.88, metalness: 0.0, vertexColors: true,
+    emissive: new T.Color('#ff9dbe'), emissiveIntensity: 0.10,
+  });
+  windifyFoliage(mat, 1.0);
+  const mesh = new T.Mesh(g, mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = false;
+  mesh.frustumCulled = false;
+  const grp = new T.Group();
+  grp.add(mesh);
+  // 叶团坐标已是世界坐标，直接放置在原点
+  scene.add(grp);
+  return { mesh, mat };
+}
+
+/* ========================================================================
+   C4. 落花
+   ======================================================================== */
+function buildPetals(count) {
+  const geo = new T.PlaneGeometry(0.10, 0.10);
+  const mat = new T.MeshStandardMaterial({
+    map: TEX.petal, color: new T.Color('#ffc9da'), alphaTest: 0.4,
+    side: T.DoubleSide, roughness: 0.85, metalness: 0, transparent: false,
+  });
+  const mesh = new T.InstancedMesh(geo, mat, count);
+  mesh.frustumCulled = false;
+  mesh.castShadow = false;
+  const items = [];
+  for (let i = 0; i < count; i++) {
+    items.push(spawnPetal({}, true));
+  }
+  mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+  return { mesh, items, mat };
+}
+function spawnPetal(p, initial) {
+  const c = CANOPY_PTS.length ? CANOPY_PTS[Math.floor(Math.random() * CANOPY_PTS.length)] : new T.Vector3(0, 4, 0);
+  p.x = c.x + (Math.random() - 0.5) * 2.2;
+  p.z = c.z + (Math.random() - 0.5) * 2.2;
+  p.y = c.y + (Math.random() - 0.5) * 1.2;
+  if (initial) p.y -= Math.random() * 6;
+  p.floor = groundH(p.x, p.z) + 0.03;
+  p.vx = (Math.random() - 0.5) * 0.25;
+  p.vz = (Math.random() - 0.5) * 0.25;
+  p.vy = 0.28 + Math.random() * 0.35;
+  p.rx = Math.random() * 6.28; p.ry = Math.random() * 6.28; p.rz = Math.random() * 6.28;
+  p.sx = (Math.random() - 0.5) * 2.4; p.sy = (Math.random() - 0.5) * 2.0; p.sz = (Math.random() - 0.5) * 1.6;
+  p.ph = Math.random() * 6.28;
+  p.sc = 0.7 + Math.random() * 0.8;
+  return p;
+}
+
+/* ========================================================================
+   组装
+   ======================================================================== */
+plantTrees();
+const foliage = buildFoliageMesh();
+const grassMesh = buildGrass();
+scene.add(grassMesh);
+const flowerBuild = buildFlowers();
+scene.add(flowerBuild.mesh);
+const petals = buildPetals(900);
+scene.add(petals.mesh);
+/* =========================================================================
+   F. 副岛 · 魔法锁链
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- *
+ *  F1. 小岛
+ * ---------------------------------------------------------------- */
+function buildMiniIsland(cx, cy, cz, R, seed, opts) {
+  opts = opts || {};
+  const r = mulberry32(seed);
+  const grp = new T.Group();
+  grp.position.set(cx, cy, cz);
+
+  const near = (x, z) => {
+    const a = Math.atan2(z, x);
+    return R * (1 + 0.10 * Math.sin(a * 3 + seed) + 0.06 * Math.sin(a * 5.5 - seed * 2));
+  };
+  const hgt = (x, z) => {
+    const d = Math.hypot(x, z) / near(x, z);
+    let h = (fbm(x * 0.28 + seed, z * 0.28 - seed, 3, 7) - 0.5) * 0.55 * R;
+    h += 0.16 * R * Math.exp(-(x * x + z * z) / (R * R * 0.6));
+    h -= Math.pow(smoothstep(0.42, 1.0, d), 1.7) * 1.05 * R;
+    return h;
+  };
+
+  /* 顶面 */
+  const rows = 13, cols = 40;
+  const pos = [], uv = [], idx = [];
+  pos.push(0, hgt(0, 0), 0); uv.push(0.5, 0.5);
+  for (let j = 0; j < rows; j++) {
+    const rt = Math.pow((j + 1) / rows, 0.9);
+    for (let i = 0; i <= cols; i++) {
+      const a = (i / cols) * TAU;
+      const R2 = near(Math.cos(a), Math.sin(a));
+      const rad = rt * R2;
+      const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
+      pos.push(x, hgt(x, z), z);
+      uv.push(x / (2 * R) + 0.5, z / (2 * R) + 0.5);
+    }
+  }
+  const c = cols + 1;
+  for (let i = 0; i < cols; i++) idx.push(0, 1 + i + 1, 1 + i);
+  for (let j = 0; j < rows - 1; j++) {
+    for (let i = 0; i < cols; i++) {
+      const a = 1 + j * c + i, b = a + 1, d = a + c, e = d + 1;
+      idx.push(a, b, d, b, e, d);
+    }
+  }
+  const tg = new T.BufferGeometry();
+  tg.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  tg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+  tg.setIndex(idx);
+  tg.computeVertexNormals();
+
+  const gt = TEX.ground.clone();
+  gt.needsUpdate = true;
+  gt.offset.set(r(), r());
+  gt.repeat.set(0.42, 0.42);
+  const groundMat = new T.MeshStandardMaterial({
+    map: gt, bumpMap: gt, bumpScale: 0.02, roughness: 0.95, metalness: 0,
+    color: new T.Color('#ffe9f1'),
+  });
+  const top = new T.Mesh(tg, groundMat);
+  top.receiveShadow = true;
+  grp.add(top);
+
+  /* 岩体 */
+  const rrows = 9, rcols = 34;
+  const rp = [], ri = [], rc = [];
+  const cTop = new T.Color('#d6b0be'), cDeep = new T.Color('#8d6675');
+  for (let j = 0; j < rrows; j++) {
+    const t = j / (rrows - 1);
+    for (let i = 0; i <= rcols; i++) {
+      const a = (i / rcols) * TAU;
+      const R2 = near(Math.cos(a), Math.sin(a));
+      const shrink = Math.pow(clamp(1 - Math.pow(t, 0.48), 0, 1), 0.62) * (1 + 0.16 * Math.sin(t * 6.0 + seed));
+      const bump = 1 + 0.34 * (fbm(Math.cos(a) * 2.2 + seed, t * 3.1, 3, 91) - 0.5);
+      const rad = R2 * shrink * bump;
+      const y = -Math.pow(t, 0.85) * R * (1.45 + 0.35 * Math.sin(seed)) - 0.05 * R;
+      rp.push(Math.cos(a) * rad, y, Math.sin(a) * rad);
+      const col = cTop.clone().lerp(cDeep, Math.pow(t, 0.6));
+      rc.push(col.r, col.g, col.b);
+    }
+  }
+  // 索引（rcols+1 列）
+  const rc2 = rcols + 1;
+  for (let j = 0; j < rrows - 1; j++) {
+    for (let i = 0; i < rcols; i++) {
+      const a = j * rc2 + i, b = a + 1, d = a + rc2, e = d + 1;
+      ri.push(a, b, d, b, e, d);
+    }
+  }
+  const rg = new T.BufferGeometry();
+  rg.setAttribute('position', new T.Float32BufferAttribute(rp, 3));
+  rg.setAttribute('color', new T.Float32BufferAttribute(rc, 3));
+  rg.setIndex(ri);
+  rg.computeVertexNormals();
+  const rock = new T.Mesh(rg, new T.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.97, flatShading: true, side: T.DoubleSide,
+  }));
+  rock.castShadow = true; rock.receiveShadow = true;
+  grp.add(rock);
+
+  scene.add(grp);
+
+  /* 草 */
+  if (opts.grass !== false) {
+    const tufts = [];
+    for (let i = 0; i < 250; i++) {
+      const a = r() * TAU, rr = Math.sqrt(r()) * R * 0.86;
+      const x = Math.cos(a) * rr, z = Math.sin(a) * rr;
+      tufts.push({ x, z, h: 0.08 + Math.pow(r(), 1.5) * 0.22, yaw: r() * TAU, ph: r() * TAU });
+    }
+    const geo = makeTuftGeo(6, 4, 3131);
+    const mesh = new T.InstancedMesh(geo, grassMat, tufts.length);
+    const m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), sc = new T.Vector3(), pv = new T.Vector3();
+    const rotArr = new Float32Array(tufts.length), phArr = new Float32Array(tufts.length);
+    const col = new T.Color();
+    tufts.forEach((tt, i) => {
+      pv.set(tt.x, hgt(tt.x, tt.z) - 0.02, tt.z);
+      e.set(0, tt.yaw, 0, 'YXZ');
+      q.setFromEuler(e);
+      const w = 0.6 + tt.h * 0.55;
+      sc.set(w, tt.h, w);
+      m4.compose(pv, q, sc);
+      mesh.setMatrixAt(i, m4);
+      rotArr[i] = tt.yaw; phArr[i] = tt.ph;
+      const tone = 0.8 + r() * 0.35;
+      col.setRGB(tone, tone, tone);
+      mesh.setColorAt(i, col);
+    });
+    geo.setAttribute('aRot', new T.InstancedBufferAttribute(rotArr, 1));
+    geo.setAttribute('aPhase', new T.InstancedBufferAttribute(phArr, 1));
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.castShadow = false; mesh.receiveShadow = true; mesh.frustumCulled = false;
+    grp.add(mesh);
+  }
+
+  /* 小樱树 */
+  if (opts.tree) {
+    buildSakura({
+      x: cx + rnd(-0.3, 0.3) * R, z: cz + rnd(-0.3, 0.3) * R, baseY: cy + hgt(0, 0) - 0.05,
+      scale: opts.tree, seed: seed + 77, depth: 4, leafR: 1.35,
+      leanX: rnd(-0.15, 0.15), leanZ: rnd(-0.15, 0.15), upBias: 0.2,
+    });
+  }
+  /* 小石灯笼 */
+  if (opts.lantern) {
+    const L = buildLantern(cx + R * 0.35, cz - R * 0.2, 0.55, r() * TAU);
+    L.group.position.set(cx + R * 0.35, cy + hgt(R * 0.35, -R * 0.2) - 0.02, cz - R * 0.2);
+  }
+
+  return { grp, R, cx, cy, cz, hgt };
+}
+
+/* ---------------------------------------------------------------- *
+ *  F2. 锁链工具
+ * ---------------------------------------------------------------- */
+function chainMatrices(curve, spacing, scl) {
+  const len = curve.getLength();
+  const n = Math.max(3, Math.round(len / spacing));
+  const out = [];
+  const up = new T.Vector3(0, 1, 0);
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    const p = curve.getPointAt(t);
+    const tan = curve.getTangentAt(t).normalize();
+    let side = new T.Vector3().crossVectors(tan, up);
+    if (side.lengthSq() < 1e-4) side.set(1, 0, 0);
+    side.normalize();
+    const nrm = new T.Vector3().crossVectors(side, tan).normalize();
+    const flip = i % 2 ? 1 : -1;
+    const yAx = (flip > 0 ? nrm : side).clone().multiplyScalar(scl);
+    const zAx = (flip > 0 ? side : nrm).clone().multiplyScalar(scl);
+    const m = new T.Matrix4();
+    m.makeBasis(tan.clone().multiplyScalar(scl), yAx, zAx);
+    m.setPosition(p);
+    out.push(m);
+  }
+  return out;
+}
+
+/* 岩体在给定高度 / 方位上的真实半径：查 b.js 生成的表面采样 */
+function rockRadiusAt(a, y) {
+  let best = 0;
+  for (let i = 0; i < ROCK_POINTS.length; i++) {
+    const p = ROCK_POINTS[i];
+    if (p.r <= best) continue;
+    let da = Math.abs(p.a - a);
+    if (da > Math.PI) da = TAU - da;
+    if (da > 0.14) continue;
+    if (Math.abs(p.y - y) > 0.85) continue;
+    best = p.r;
+  }
+  if (best > 0) return best;
+  // 兜底估算
+  const t = Math.pow(Math.max(0, (0.8 - y)) / 19.5, 1 / 0.92);
+  const shrink = Math.pow(clamp(1 - Math.pow(clamp(t, 0, 1), 0.62), 0, 1), 0.72);
+  return islandRadius(a) * shrink;
+}
+
+/* 螺旋束链：绕岩体多圈 */
+function helixCoil(y0, y1, turns, phase, extraR) {
+  const N = 190;
+  const pts = [];
+  for (let i = 0; i <= N; i++) {
+    const s = i / N;
+    const ang = phase + s * turns * TAU;
+    const y = y0 + (y1 - y0) * s + Math.sin(s * 5.0 + phase * 2) * 0.10;
+    const r = rockRadiusAt(ang, y) + (extraR || 0.22);
+    pts.push(new T.Vector3(Math.cos(ang) * r, y, Math.sin(ang) * r));
+  }
+  return new T.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
+}
+
+/* ------------- 魔法能量材质 ------------- */
+const CHAIN_MATS = {
+  uTime: { value: 0 },
+  uPow: { value: 1.0 },
+  uColA: { value: new T.Color('#ff8fd0') },
+  uColB: { value: new T.Color('#b98cff') },
+  uColC: { value: new T.Color('#ffffff') },
+};
+
+const chainCoreMat = new T.ShaderMaterial({
+  uniforms: CHAIN_MATS,
+  transparent: true,
+  blending: T.AdditiveBlending,
+  depthWrite: false,
+  side: T.DoubleSide,
+  vertexShader: `
+    varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+    void main(){
+      vUv = uv;
+      vec4 wp = modelMatrix * vec4(position,1.0);
+      vN = normalize(mat3(modelMatrix) * normal);
+      vV = normalize(cameraPosition - wp.xyz);
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+  fragmentShader: `
+    uniform float uTime,uPow; uniform vec3 uColA,uColB,uColC;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+    void main(){
+      float t = vUv.y;
+      // 三个不同速度的流动脉冲
+      float p1 = pow(fract(t * 2.2 - uTime * 0.22), 7.0);
+      float p2 = pow(fract(t * 1.1 - uTime * 0.12 + 0.37), 9.0);
+      float p3 = pow(fract(t * 5.0 - uTime * 0.38 + 0.71), 12.0);
+      float ripple = 0.5 + 0.5 * sin(t * 210.0 - uTime * 7.0);
+      // 符文带
+      float rune = smoothstep(0.55, 0.95, fract(t * 52.0 - uTime * 0.5));
+      float fres = pow(abs(dot(normalize(vN), normalize(vV))), 0.6);
+      float a = (0.14 + p1 * 1.5 + p2 * 1.2 + p3 * 1.6 + ripple * 0.14 + rune * 0.55) * uPow * (0.55 + 0.65 * fres);
+      vec3 c = mix(uColA, uColB, clamp(p1 + p2, 0.0, 1.0));
+      c = mix(c, uColC, clamp(p3 + rune * 0.7, 0.0, 1.0));
+      gl_FragColor = vec4(c, clamp(a, 0.0, 1.0));
+    }`,
+});
+
+const chainGlowMat = new T.ShaderMaterial({
+  uniforms: CHAIN_MATS,
+  transparent: true,
+  blending: T.AdditiveBlending,
+  depthWrite: false,
+  side: T.DoubleSide,
+  vertexShader: `
+    varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+    void main(){
+      vUv = uv;
+      vec4 wp = modelMatrix * vec4(position,1.0);
+      vN = normalize(mat3(modelMatrix) * normal);
+      vV = normalize(cameraPosition - wp.xyz);
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+  fragmentShader: `
+    uniform float uTime,uPow; uniform vec3 uColA,uColB,uColC;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+    void main(){
+      float t = vUv.y;
+      float p1 = pow(fract(t * 2.2 - uTime * 0.22), 3.0);
+      float pulse = 0.22 + p1 * 0.9;
+      float fres = 1.0 - abs(dot(normalize(vN), normalize(vV)));
+      float a = pulse * (0.30 + fres * 0.85) * uPow;
+      vec3 c = mix(uColA, uColB, p1 * 0.7);
+      gl_FragColor = vec4(c, clamp(a, 0.0, 1.0));
+    }`,
+});
+
+const chainLinkGeo = (() => {
+  const g = new T.TorusGeometry(0.21, 0.078, 6, 12);
+  g.scale(1.0, 1.55, 1.0);
+  return g;
+})();
+const chainMat = new T.MeshStandardMaterial({
+  color: new T.Color('#5d4854'), roughness: 0.32, metalness: 0.78,
+  emissive: new T.Color('#ff5fae'), emissiveIntensity: 0.26,
+});
+
+/* ---------------------------------------------------------------- *
+ *  F3. 副岛（270° 均匀分布，每座都有樱树）
+ * ---------------------------------------------------------------- */
+const D2R = Math.PI / 180;
+const SUB_DEFS = [
+  { a: 171 * D2R, dist: 46.0, y: 7.5, R: 3.2, seed: 11, tree: 0.62, lantern: true },
+  { a: 261 * D2R, dist: 44.0, y: -2.0, R: 2.9, seed: 23, tree: 0.58, lantern: false },
+  { a: 81 * D2R, dist: 40.0, y: 4.0, R: 2.8, seed: 37, tree: 0.56, lantern: false },
+  { a: 351 * D2R, dist: 48.0, y: -6.0, R: 2.6, seed: 51, tree: 0.54, lantern: false },
+];
+
+const _leafBase = leafVerts.pos.length / 3;
+const subIslands = [];
+SUB_DEFS.forEach((d) => {
+  const cx = Math.cos(d.a) * d.dist;
+  const cz = Math.sin(d.a) * d.dist;
+  const si = buildMiniIsland(cx, d.y, cz, d.R, d.seed, { tree: d.tree, lantern: d.lantern });
+  si.def = d;
+  subIslands.push(si);
+});
+
+/* 主叶冠网格已在 C 段生成，副岛树的叶片需要单独建一份 */
+(function buildSubFoliage(vStart) {
+  if (leafVerts.pos.length <= vStart * 3) return;
+  const pos = leafVerts.pos.slice(vStart * 3);
+  const nrm = leafVerts.nrm.slice(vStart * 3);
+  const uv = leafVerts.uv.slice(vStart * 2);
+  const sw = leafVerts.sway.slice(vStart);
+  const ph = leafVerts.phase.slice(vStart);
+  const col = leafVerts.col.slice(vStart * 3);
+  const idx = [];
+  for (let i = 0; i < leafVerts.idx.length; i++) {
+    const v = leafVerts.idx[i];
+    if (v >= vStart) idx.push(v - vStart);
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new T.Float32BufferAttribute(nrm, 3));
+  g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+  g.setAttribute('aSway', new T.Float32BufferAttribute(sw, 1));
+  g.setAttribute('aPhase', new T.Float32BufferAttribute(ph, 1));
+  g.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  const norm = g.attributes.normal;
+  for (let i = 0; i < norm.count; i++) {
+    const v = new T.Vector3(norm.getX(i), norm.getY(i), norm.getZ(i)).normalize();
+    norm.setXYZ(i, v.x, v.y, v.z);
+  }
+  const mesh = new T.Mesh(g, foliage.mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = false;
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+})(_leafBase);
+
+/* ---------------------------------------------------------------- *
+ *  F4. 束链：岩体螺旋缠绕 + 副岛悬链
+ * ---------------------------------------------------------------- */
+const CHAIN_GROUP = new T.Group();
+scene.add(CHAIN_GROUP);
+
+const chainCurves = [];
+function addChain(curve, spacing, scl, tubeR, glowR) {
+  chainCurves.push({ curve, tubeR: tubeR === undefined ? 0.06 : tubeR, glowR: glowR === undefined ? 0.22 : glowR });
+  return chainMatrices(curve, spacing, scl);
+}
+
+let allMatrices = [];
+
+/* 两道螺旋，把岛体下部缠满 */
+const coilA = helixCoil(-1.5, -8.6, 2.8, 0.4, 0.24);
+const coilB = helixCoil(-6.6, -13.4, 1.8, 2.1, 0.20);
+allMatrices = allMatrices.concat(addChain(coilA, 0.50, 1.42, 0.055, 0.16));
+allMatrices = allMatrices.concat(addChain(coilB, 0.56, 1.34, 0.050, 0.14));
+
+/* 副岛悬链 + 封印 */
+const SEALS = [];
+subIslands.forEach((si) => {
+  const d = si.def;
+  const a = d.a;
+  const rimR = islandRadius(a) * 0.965;
+  const ay = groundH(Math.cos(a) * rimR, Math.sin(a) * rimR) - 0.12;
+  const anchor = new T.Vector3(Math.cos(a) * rimR, ay, Math.sin(a) * rimR);
+  const subAnchor = new T.Vector3(
+    si.cx - Math.cos(a) * si.R * 0.78,
+    si.cy - 0.25,
+    si.cz - Math.sin(a) * si.R * 0.78
+  );
+  const dir = subAnchor.clone().sub(anchor);
+  const dLen = dir.length();
+  const pts = [anchor.clone()];
+  const segs = 4;
+  for (let i = 1; i < segs; i++) {
+    const t = i / segs;
+    const p = anchor.clone().lerp(subAnchor, t);
+    p.y -= Math.sin(t * Math.PI) * Math.min(3.2, dLen * 0.10);
+    pts.push(p);
+  }
+  pts.push(subAnchor);
+  const curve = new T.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
+  allMatrices = allMatrices.concat(addChain(curve, Math.max(0.42, curve.getLength() / 150), 1.46, 0.056, 0.16));
+
+  // 草地上的封印法阵
+  const sealGrp = new T.Group();
+  sealGrp.position.copy(anchor).add(new T.Vector3(0, 0.06, 0));
+  sealGrp.rotation.set(-Math.PI / 2, 0, rnd(0, TAU));
+  const ringMat = new T.MeshBasicMaterial({
+    color: 0xff9ed6, transparent: true, opacity: 0.8,
+    blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide,
+  });
+  const ring1 = new T.Mesh(new T.TorusGeometry(0.72, 0.032, 6, 44), ringMat);
+  sealGrp.add(ring1);
+  const ring2 = new T.Mesh(new T.TorusGeometry(0.44, 0.020, 6, 30), ringMat.clone());
+  ring2.material.opacity = 0.55;
+  sealGrp.add(ring2);
+  for (let i = 0; i < 8; i++) {
+    const a2 = (i / 8) * TAU;
+    const tick = new T.Mesh(new T.PlaneGeometry(0.12, 0.30), ringMat.clone());
+    tick.material.opacity = 0.9;
+    tick.position.set(Math.cos(a2) * 0.72, Math.sin(a2) * 0.72, 0);
+    tick.rotation.z = a2 + Math.PI / 2;
+    sealGrp.add(tick);
+  }
+  const glow = new T.Sprite(new T.SpriteMaterial({
+    map: TEX.glow, color: 0xffb6e0, transparent: true, opacity: 0.55,
+    blending: T.AdditiveBlending, depthWrite: false,
+  }));
+  glow.scale.set(5.0, 5.0, 1);
+  sealGrp.add(glow);
+  CHAIN_GROUP.add(sealGrp);
+  SEALS.push({ grp: sealGrp, ring1, ring2, glow });
+});
+
+/* 实例化链节 */
+const chainMesh = new T.InstancedMesh(chainLinkGeo, chainMat, allMatrices.length);
+chainMesh.instanceMatrix.setUsage(T.StaticDrawUsage);
+allMatrices.forEach((m, i) => chainMesh.setMatrixAt(i, m));
+chainMesh.instanceMatrix.needsUpdate = true;
+chainMesh.castShadow = true;
+chainMesh.receiveShadow = true;
+chainMesh.frustumCulled = false;
+CHAIN_GROUP.add(chainMesh);
+
+/* 能量芯 + 外发光套 */
+chainCurves.forEach((ccf) => {
+  const pts = [];
+  const N = 60;
+  for (let i = 0; i <= N; i++) pts.push(ccf.curve.getPointAt(i / N));
+  const core = new T.Mesh(loftTube(pts, ccf.tubeR, ccf.tubeR, 6), chainCoreMat);
+  core.frustumCulled = false;
+  CHAIN_GROUP.add(core);
+  const glow = new T.Mesh(loftTube(pts, ccf.glowR, ccf.glowR, 6), chainGlowMat);
+  glow.frustumCulled = false;
+  CHAIN_GROUP.add(glow);
+});
+
+/* ---------------------------------------------------------------- *
+ *  F5. 沿链流动的火花
+ * ---------------------------------------------------------------- */
+const SPARK_LUT = [];
+chainCurves.forEach((ccf) => {
+  const N = 200;
+  const pts = [];
+  for (let i = 0; i <= N; i++) pts.push(ccf.curve.getPointAt(i / N));
+  SPARK_LUT.push(pts);
+});
+
+const SPARK_N = 460;
+const sparkPos = new Float32Array(SPARK_N * 3);
+const sparkCol = new Float32Array(SPARK_N * 3);
+const sparkState = [];
+for (let i = 0; i < SPARK_N; i++) {
+  sparkState.push({
+    c: Math.floor(RNG() * SPARK_LUT.length),
+    u: RNG(),
+    sp: 0.045 + RNG() * 0.16,
+    off: new T.Vector3((RNG() - 0.5) * 0.18, (RNG() - 0.5) * 0.18, (RNG() - 0.5) * 0.18),
+    ph: RNG() * TAU,
+  });
+}
+const sparkGeo = new T.BufferGeometry();
+sparkGeo.setAttribute('position', new T.BufferAttribute(sparkPos, 3));
+sparkGeo.setAttribute('color', new T.BufferAttribute(sparkCol, 3));
+const sparkMat = new T.PointsMaterial({
+  size: 0.42, map: TEX.glow, vertexColors: true, transparent: true, opacity: 0.95,
+  blending: T.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false,
+});
+const sparkPoints = new T.Points(sparkGeo, sparkMat);
+sparkPoints.frustumCulled = false;
+CHAIN_GROUP.add(sparkPoints);
+
+const _sv = new T.Vector3();
+function updateChainVFX(t, dt) {
+  CHAIN_MATS.uTime.value = t;
+  CHAIN_MATS.uPow.value = 1.05 + Math.sin(t * 1.6) * 0.18;
+  chainMat.emissiveIntensity = 0.22 + Math.abs(Math.sin(t * 1.3)) * 0.24;
+  for (let i = 0; i < SPARK_N; i++) {
+    const s = sparkState[i];
+    s.u += s.sp * dt;
+    if (s.u > 1) { s.u -= 1; s.c = Math.floor(Math.random() * SPARK_LUT.length); }
+    const lut = SPARK_LUT[s.c];
+    const f = s.u * (lut.length - 1);
+    const i0 = Math.floor(f), i1 = Math.min(lut.length - 1, i0 + 1);
+    const k = f - i0;
+    _sv.copy(lut[i0]).lerp(lut[i1], k);
+    sparkPos[i * 3] = _sv.x + s.off.x + Math.sin(t * 3 + s.ph) * 0.05;
+    sparkPos[i * 3 + 1] = _sv.y + s.off.y + Math.cos(t * 2.4 + s.ph) * 0.05;
+    sparkPos[i * 3 + 2] = _sv.z + s.off.z + Math.sin(t * 2.8 + s.ph * 1.7) * 0.05;
+    const b = 0.55 + 0.45 * Math.sin(t * 6 + s.ph * 3);
+    sparkCol[i * 3] = 1.0 * b;
+    sparkCol[i * 3 + 1] = 0.68 * b;
+    sparkCol[i * 3 + 2] = 0.92 * b;
+  }
+  sparkGeo.attributes.position.needsUpdate = true;
+  sparkGeo.attributes.color.needsUpdate = true;
+}
+/* =========================================================================
+   G. 背景音乐：播放真实音频文件（同目录自动探测 / 选文件 / 拖拽）
+   ========================================================================= */
+const BGM = (function () {
+  const el = new Audio();
+  el.loop = true;
+  el.preload = 'auto';
+  let volume = 0.45;
+  let loaded = false;
+  let trackName = '';
+  let objectUrl = null;
+  let probeIndex = 0;
+  el.volume = volume;
+
+  /* 同目录自动探测：把曲子命名为 bgm.mp3 放进来即可 */
+  const CANDIDATES = ['bgm.mp3', 'bgm.ogg', 'bgm.m4a', 'bgm.wav', 'bgm.flac'];
+
+  function markLoaded(name) {
+    loaded = true;
+    trackName = name;
+    el.title = name;
+  }
+
+  /* 轮询探测：不依赖事件时序（首屏构建会长时间阻塞主线程） */
+  function probe() {
+    const name = CANDIDATES[probeIndex];
+    if (!name) { loaded = false; return; }
+    el.src = name;
+    el.load();
+    let ticks = 0;
+    const timer = setInterval(() => {
+      ticks++;
+      if (el.duration > 0 && el.readyState >= 1) {
+        clearInterval(timer);
+        markLoaded(name);
+        return;
+      }
+      if (el.error) {
+        clearInterval(timer);
+        probeIndex++;
+        probe();
+        return;
+      }
+      if (ticks > 80) {
+        clearInterval(timer);
+        probeIndex++;
+        probe();
+      }
+    }, 250);
+  }
+
+  function setVolume(v) {
+    volume = clamp(v, 0, 1);
+    el.volume = volume;
+  }
+  function play() {
+    if (!loaded) return Promise.resolve(false);
+    return el.play().then(() => true).catch(() => false);
+  }
+  function pause() { el.pause(); }
+  function toggle() {
+    if (!loaded) return Promise.resolve(false);
+    if (el.paused) return play();
+    pause();
+    return Promise.resolve(false);
+  }
+  function loadFile(file) {
+    if (!file) return;
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = URL.createObjectURL(file);
+    el.src = objectUrl;
+    el.load();
+    loaded = true;
+    trackName = file.name;
+    el.title = file.name;
+    el.play().catch(() => {});
+  }
+
+  probe();
+
+  /* 场景构建会阻塞主线程，可能错过首个事件；空闲后再试一次 */
+  function reprobe() { if (loaded) return; probeIndex = 0; probe(); }
+
+  return {
+    el, setVolume, play, pause, toggle, loadFile, reprobe,
+    get playing() { return loaded && !el.paused; },
+    get loaded() { return loaded; },
+    get name() { return trackName; },
+  };
+})();
+/* =========================================================================
+   E. 云 / 昼夜 / 交互 / 主循环
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- *
+ *  E1. 云
+ * ---------------------------------------------------------------- */
+function buildClouds() {
+  const r = mulberry32(31337);
+  const mats = [0.18, 0.26, 0.36, 0.48].map((o) => new T.SpriteMaterial({
+    map: TEX.cloud, transparent: true, opacity: o, depthWrite: false, fog: true, color: 0xffffff,
+  }));
+  const grp = new T.Group();
+  const items = [];
+  for (let i = 0; i < 15; i++) {
+    const a = r() * TAU;
+    const rad = 62 + Math.pow(r(), 0.7) * 95;
+    const y = -26 + r() * 46;
+    const cl = new T.Group();
+    cl.position.set(Math.cos(a) * rad, y, Math.sin(a) * rad);
+    const n = 3 + Math.floor(r() * 4);
+    for (let j = 0; j < n; j++) {
+      const sp = new T.Sprite(mats[Math.floor(r() * mats.length)]);
+      const s = 12 + r() * 20;
+      sp.scale.set(s, s * 0.58, 1);
+      sp.position.set((r() - 0.5) * s * 1.15, (r() - 0.5) * s * 0.20, (r() - 0.5) * s * 0.7);
+      cl.add(sp);
+    }
+    grp.add(cl);
+    items.push({ cl, y, ph: r() * TAU, amp: 0.35 + r() * 0.9 });
+  }
+  // 若干中景云，增加层次
+  for (let i = 0; i < 9; i++) {
+    const a = r() * TAU;
+    const rad = 42 + r() * 30;
+    const y = -14 + r() * 26;
+    const cl = new T.Group();
+    cl.position.set(Math.cos(a) * rad, y, Math.sin(a) * rad);
+    for (let j = 0; j < 2; j++) {
+      const sp = new T.Sprite(mats[0]);
+      const s = 6 + r() * 10;
+      sp.scale.set(s, s * 0.52, 1);
+      sp.position.set((r() - 0.5) * s, (r() - 0.5) * s * 0.2, (r() - 0.5) * s * 0.5);
+      cl.add(sp);
+    }
+    grp.add(cl);
+    items.push({ cl, y, ph: r() * TAU, amp: 0.2 + r() * 0.5 });
+  }
+  // 低空云海
+  const seaTex = TEX.cloud.clone();
+  seaTex.needsUpdate = true;
+  seaTex.wrapS = seaTex.wrapT = T.RepeatWrapping;
+  seaTex.repeat.set(24, 24);
+  const seaMat = new T.MeshBasicMaterial({
+    map: seaTex, transparent: true, opacity: 0.13, depthWrite: false, fog: true,
+    color: 0xffffff, side: T.DoubleSide,
+  });
+  const sea = new T.Mesh(new T.PlaneGeometry(1500, 1500, 1, 1), seaMat);
+  sea.rotation.x = -Math.PI / 2;
+  sea.position.y = -42;
+  grp.add(sea);
+  const seaMat2 = seaMat.clone();
+  seaMat2.opacity = 0.08;
+  const sea2 = new T.Mesh(new T.PlaneGeometry(1100, 1100, 1, 1), seaMat2);
+  sea2.rotation.x = -Math.PI / 2;
+  sea2.position.y = -34;
+  grp.add(sea2);
+  return { grp, mats, items, seaMat, seaMat2, seaTex };
+}
+const clouds = buildClouds();
+scene.add(clouds.grp);
+
+/* ---------------------------------------------------------------- *
+ *  E2. 空气尘埃 / 萤火
+ * ---------------------------------------------------------------- */
+const dust = makeMotes(340, 0xfff0e0, 0.10, 15, [0, 13]);
+scene.add(dust);
+const motes = makeMotes(220, 0xffe0b0, 0.08, 8, [0.2, 6]);
+motes.material.opacity = 0.0;
+scene.add(motes);
+
+/* 灯笼点光 */
+const lanternLights = [];
+[L1, L2].forEach((L) => {
+  const pl = new T.PointLight(0xffb469, 0, 9, 2);
+  pl.position.copy(L.group.position).add(new T.Vector3(0, 1.42, 0));
+  scene.add(pl);
+  lanternLights.push(pl);
+});
+
+/* ---------------------------------------------------------------- *
+ *  E3. 昼夜预设
+ * ---------------------------------------------------------------- */
+const PRESETS = {
+  dawn: {
+    skyTop: '#7f6cc4', skyMid: '#e9a8bf', skyHor: '#ffd2c4',
+    sun: '#ffe2c4', sunI: 0.95, sunDir: [-0.58, 0.33, -0.60],
+    hemiSky: '#c6b3e6', hemiGround: '#f3c0cc', hemiI: 0.58,
+    fog: '#f3c9d6', fogD: 0.0022, beamI: 0.80, beamC: '#ffcf9e',
+    cloud: '#ffe0e6', cloudB: '#a97f9e', moon: '#fff0d8',
+    star: 0.55, cloudAmt: 0.80, cloudSpd: 0.078, glow: 0.9, rim: 0.26,
+    exposure: 0.74, lantern: 0.9, flowerE: 0.18, petal: '#ffd2de',
+  },
+  day: {
+    skyTop: '#1f93e2', skyMid: '#6cc2f2', skyHor: '#ffcfe0',
+    sun: '#fff8ec', sunI: 1.46, sunDir: [-0.60, 0.64, 0.48],
+    hemiSky: '#e6d8ff', hemiGround: '#ffccda', hemiI: 0.62,
+    fog: '#ffe8f0', fogD: 0.0016, beamI: 0.48, beamC: '#ffd9a8',
+    cloud: '#e9e0f2', cloudB: '#b894ac', moon: '#e6ecff',
+    star: 0.30, cloudAmt: 0.66, cloudSpd: 0.070, glow: 0.35, rim: 0.16,
+    exposure: 0.74, lantern: 0.0, flowerE: 0.0, petal: '#ffc2d6',
+  },
+  dusk: {
+    skyTop: '#4c3d80', skyMid: '#d9829a', skyHor: '#ffbe92',
+    sun: '#ffb066', sunI: 1.28, sunDir: [-0.82, 0.25, 0.30],
+    hemiSky: '#9a83c0', hemiGround: '#eaa99c', hemiI: 0.52,
+    fog: '#e8ab9e', fogD: 0.0022, beamI: 0.95, beamC: '#ffbf84',
+    cloud: '#ffcfb8', cloudB: '#7d5474', moon: '#ffe0b8',
+    star: 0.55, cloudAmt: 0.95, cloudSpd: 0.105, glow: 1.0, rim: 0.30,
+    exposure: 0.74, lantern: 1.6, flowerE: 0.4, petal: '#ffb4a2',
+  },
+  night: {
+    skyTop: '#0b0a1e', skyMid: '#1d1a3e', skyHor: '#3a3160',
+    sun: '#c6d8ff', sunI: 0.62, sunDir: [0.34, 0.60, 0.46],
+    hemiSky: '#2b3270', hemiGround: '#4a2a4e', hemiI: 0.34,
+    fog: '#221d44', fogD: 0.0034, beamI: 0.85, beamC: '#cfd8ff',
+    cloud: '#8e8cc8', cloudB: '#241f42', moon: '#dbe6ff',
+    star: 1.0, cloudAmt: 0.62, cloudSpd: 0.045, glow: 0.8, rim: 0.45,
+    exposure: 0.80, lantern: 3.2, flowerE: 0.9, petal: '#dcc9ff',
+  },
+};
+
+const LIVE = {
+  skyTop: new T.Color(), skyMid: new T.Color(), skyHor: new T.Color(), sun: new T.Color(),
+  hemiSky: new T.Color(), hemiGround: new T.Color(), fog: new T.Color(), beam: new T.Color(),
+  cloud: new T.Color(), cloudB: new T.Color(), moon: new T.Color(), petal: new T.Color(),
+  sunDir: new T.Vector3(-0.46, 0.74, -0.49),
+  sunI: 1.5, hemiI: 0.46, fogD: 0.0016, beamI: 0.13, exposure: 0.74, rim: 0.16,
+  star: 0.3, lantern: 0, flowerE: 0, glow: 0.35, cloudAmt: 0.56, cloudSpd: 0.062,
+};
+const TGT = {
+  skyTop: new T.Color(), skyMid: new T.Color(), skyHor: new T.Color(), sun: new T.Color(),
+  hemiSky: new T.Color(), hemiGround: new T.Color(), fog: new T.Color(), beam: new T.Color(),
+  cloud: new T.Color(), cloudB: new T.Color(), moon: new T.Color(), petal: new T.Color(),
+  sunDir: new T.Vector3(),
+  sunI: 0, hemiI: 0, fogD: 0, beamI: 0, exposure: 1, rim: 0,
+  star: 0, lantern: 0, flowerE: 0, glow: 0, cloudAmt: 0, cloudSpd: 0,
+};
+let curPreset = 'day';
+
+function applyPreset(name, instant) {
+  const p = PRESETS[name];
+  curPreset = name;
+  TGT.skyTop.set(p.skyTop); TGT.skyMid.set(p.skyMid); TGT.skyHor.set(p.skyHor);
+  TGT.sun.set(p.sun); TGT.hemiSky.set(p.hemiSky); TGT.hemiGround.set(p.hemiGround);
+  TGT.fog.set(p.fog); TGT.beam.set(p.beamC); TGT.cloud.set(p.cloud); TGT.cloudB.set(p.cloudB);
+  TGT.moon.set(p.moon); TGT.petal.set(p.petal);
+  TGT.sunDir.set(p.sunDir[0], p.sunDir[1], p.sunDir[2]).normalize();
+  TGT.sunI = p.sunI; TGT.hemiI = p.hemiI; TGT.fogD = p.fogD; TGT.beamI = p.beamI;
+  TGT.exposure = p.exposure; TGT.star = p.star; TGT.lantern = p.lantern; TGT.flowerE = p.flowerE;
+  TGT.glow = p.glow; TGT.cloudAmt = p.cloudAmt; TGT.cloudSpd = p.cloudSpd; TGT.rim = p.rim;
+  if (instant) {
+    Object.keys(LIVE).forEach((k) => {
+      if (LIVE[k] && LIVE[k].isColor) LIVE[k].copy(TGT[k]);
+      else if (LIVE[k] && LIVE[k].isVector3) LIVE[k].copy(TGT[k]);
+      else LIVE[k] = TGT[k];
+    });
+    pushEnvironment();
+  }
+}
+
+function pushEnvironment() {
+  skyUniforms.uTop.value.copy(LIVE.skyTop);
+  skyUniforms.uMid.value.copy(LIVE.skyMid);
+  skyUniforms.uHor.value.copy(LIVE.skyHor);
+  skyUniforms.uMoon.value.copy(LIVE.moon);
+  skyUniforms.uStar.value = LIVE.star;
+  skyUniforms.uGlow.value = LIVE.glow;
+  skyUniforms.uCloud.value = LIVE.cloudAmt;
+  skyUniforms.uCloudSpeed.value = LIVE.cloudSpd;
+  skyUniforms.uCloudA.value.copy(LIVE.cloud);
+  skyUniforms.uCloudB.value.copy(LIVE.cloudB);
+
+  moonUniforms.uColor.value.copy(LIVE.moon);
+  moonHalo.material.color.copy(LIVE.moon);
+  moonHalo.material.opacity = 0.22 + LIVE.glow * 0.30;
+
+  sun.color.copy(LIVE.sun);
+  sun.intensity = LIVE.sunI;
+  sun.position.copy(LIVE.sunDir).multiplyScalar(72);
+  sun.target.position.set(0, 0, 0);
+
+  hemi.color.copy(LIVE.hemiSky);
+  hemi.groundColor.copy(LIVE.hemiGround);
+  hemi.intensity = LIVE.hemiI;
+
+  scene.fog.color.copy(LIVE.fog);
+  scene.fog.density = LIVE.fogD;
+
+  beamUniforms.uColor.value.copy(LIVE.beam);
+  beamUniforms.uInt.value = LIVE.beamI;
+  beamPool.position.set(0, groundH(0, 0) + 0.08, 0);
+  moonRim.intensity = LIVE.rim;
+  beamPool.material.color.copy(LIVE.beam);
+  beamPool.material.opacity = LIVE.beamI * 0.85;
+  dust.material.color.copy(LIVE.beam);
+
+  clouds.mats.forEach((m) => m.color.copy(LIVE.cloud));
+  clouds.seaMat.color.copy(LIVE.cloud).lerp(LIVE.skyMid, 0.55);
+  clouds.seaMat2.color.copy(LIVE.cloud).lerp(LIVE.skyMid, 0.65);
+
+  petals.mat.color.copy(LIVE.petal);
+  flowerBuild.mat.emissive.copy(LIVE.petal);
+  flowerBuild.mat.emissiveIntensity = LIVE.flowerE * 0.5;
+
+  M.lanternGlow.emissiveIntensity = LIVE.lantern * 0.9;
+  lanternLights.forEach((l) => { l.intensity = LIVE.lantern * 1.6; });
+
+  motes.material.opacity = clamp((LIVE.star - 0.3) * 1.5, 0, 0.85);
+  motes.material.color.set(0xffe6a8);
+
+  renderer.toneMappingExposure = LIVE.exposure;
+}
+
+function updateEnvironment(dt) {
+  const k = 1 - Math.exp(-dt * 2.0);
+  Object.keys(LIVE).forEach((key) => {
+    const lv = LIVE[key];
+    if (lv && lv.isColor) lv.lerp(TGT[key], k);
+    else if (lv && lv.isVector3) lv.lerp(TGT[key], k);
+    else LIVE[key] += (TGT[key] - LIVE[key]) * k;
+  });
+  LIVE.sunDir.normalize();
+  pushEnvironment();
+}
+
+/* ---------------------------------------------------------------- *
+ *  E4. 相机控制
+ * ---------------------------------------------------------------- */
+const ctrl = {
+  theta: 0.94, phi: 1.45, radius: 43,
+  tTheta: 0.94, tPhi: 1.45, tRadius: 43,
+  target: new T.Vector3(0, 2.2, 0),
+  auto: true, dragging: false, idle: 0,
+};
+const dom = renderer.domElement;
+let lastX = 0, lastY = 0, pointers = new Map(), pinchDist = 0;
+
+function onDown(e) {
+  dom.setPointerCapture && dom.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  ctrl.dragging = true; ctrl.idle = 0;
+  if (pointers.size === 2) {
+    const p = [...pointers.values()];
+    pinchDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+  }
+}
+function onMove(e) {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) {
+    const p = [...pointers.values()];
+    const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+    if (pinchDist > 0) {
+      ctrl.tRadius = clamp(ctrl.tRadius * (pinchDist / d), 17, 82);
+    }
+    pinchDist = d;
+    return;
+  }
+  ctrl.tTheta -= dx * 0.0055;
+  ctrl.tPhi = clamp(ctrl.tPhi - dy * 0.0042, 0.20, 1.62);
+  ctrl.idle = 0;
+}
+function onUp(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size === 0) ctrl.dragging = false;
+  pinchDist = 0;
+}
+dom.addEventListener('pointerdown', onDown);
+window.addEventListener('pointermove', onMove);
+window.addEventListener('pointerup', onUp);
+window.addEventListener('pointercancel', onUp);
+dom.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  ctrl.tRadius = clamp(ctrl.tRadius * (1 + Math.sign(e.deltaY) * 0.09), 17, 82);
+  ctrl.idle = 0;
+}, { passive: false });
+window.addEventListener('keydown', (e) => {
+  const map = { 1: 'dawn', 2: 'day', 3: 'dusk', 4: 'night' };
+  if (map[e.key]) { applyPreset(map[e.key]); setSegActive(map[e.key]); }
+  if (e.key === ' ') { ctrl.auto = !ctrl.auto; document.getElementById('btnOrbit').classList.toggle('on', ctrl.auto); }
+});
+
+/* ---------------------------------------------------------------- *
+ *  E5. UI
+ * ---------------------------------------------------------------- */
+const segBtns = [...document.querySelectorAll('#segTime button')];
+function setSegActive(t) { segBtns.forEach((b) => b.classList.toggle('on', b.dataset.t === t)); }
+segBtns.forEach((b) => b.addEventListener('click', () => {
+  applyPreset(b.dataset.t);
+  setSegActive(b.dataset.t);
+}));
+
+const windEl = document.getElementById('wind');
+const windLab = document.getElementById('windVal');
+function windLabel(v) {
+  if (v <= 2) return '無風';
+  if (v <= 22) return '微風';
+  if (v <= 52) return '和風';
+  if (v <= 78) return '疾風';
+  return '狂風';
+}
+function updateWindUI() {
+  const v = +windEl.value;
+  windEl.style.setProperty('--p', v + '%');
+  windLab.textContent = windLabel(v);
+  windState.target = v / 100;
+}
+windEl.addEventListener('input', updateWindUI);
+updateWindUI();
+
+/* ---- 背景音乐（真实音频文件） ---- */
+const musicBtn = document.getElementById('btnMusic');
+const musicVol = document.getElementById('musicVol');
+const musicPick = document.getElementById('btnPick');
+const musicFile = document.getElementById('musicFile');
+
+function updateMusicUI() {
+  const on = BGM.playing;
+  musicBtn.classList.toggle('on', on);
+  musicBtn.textContent = on ? '音楽 ❚❚' : '音楽 ▶';
+  musicBtn.title = BGM.loaded ? ('正在播放：' + BGM.name) : '把 bgm.mp3 放到本文件同目录，或点「選曲」载入';
+  musicVol.style.setProperty('--p', musicVol.value + '%');
+  BGM.setVolume(+musicVol.value / 100);
+}
+musicVol.addEventListener('input', updateMusicUI);
+musicBtn.addEventListener('click', () => {
+  if (!BGM.loaded) { musicFile.click(); return; }
+  BGM.toggle().then(updateMusicUI);
+});
+musicPick.addEventListener('click', () => musicFile.click());
+musicFile.addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) { BGM.loadFile(f); setTimeout(updateMusicUI, 400); }
+});
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f && /^audio\//.test(f.type)) { BGM.loadFile(f); setTimeout(updateMusicUI, 400); }
+});
+updateMusicUI();
+setInterval(updateMusicUI, 1000);
+setTimeout(() => { if (!BGM.loaded) BGM.reprobe(); }, 1800);
+setTimeout(updateMusicUI, 2600);
+
+function kickMusic(e) {
+  if (e.target && e.target.closest && e.target.closest('#hud')) return;
+  window.removeEventListener('pointerdown', kickMusic);
+  if (BGM.loaded && !BGM.playing) BGM.play().then(updateMusicUI);
+}
+window.addEventListener('pointerdown', kickMusic);
+
+const btnOrbit = document.getElementById('btnOrbit');
+btnOrbit.addEventListener('click', () => {
+  ctrl.auto = !ctrl.auto;
+  btnOrbit.classList.toggle('on', ctrl.auto);
+});
+petals.mesh.count = 420;
+let petalBoost = false;
+const btnPetal = document.getElementById('btnPetal');
+btnPetal.addEventListener('click', () => {
+  petalBoost = !petalBoost;
+  btnPetal.classList.toggle('on', petalBoost);
+  petals.mesh.count = petalBoost ? petals.items.length : 420;
+});
+
+/* ---------------------------------------------------------------- *
+ *  E6. 自适应
+ * ---------------------------------------------------------------- */
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+}
+window.addEventListener('resize', resize);
+
+/* ---------------------------------------------------------------- *
+ *  E7. 主循环
+ * ---------------------------------------------------------------- */
+const clock = new T.Clock();
+const tmpM = new T.Matrix4();
+const tmpQ = new T.Quaternion();
+const tmpE = new T.Euler();
+const tmpV = new T.Vector3();
+const tmpS = new T.Vector3();
+
+function updatePetals(dt, t) {
+  const list = petals.items;
+  const wd = sharedUniforms.uWindDir.value;
+  const wind = windState.cur;
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
+    const swirl = Math.sin(t * 1.9 + p.ph) * (0.45 + wind * 1.4);
+    p.x += (p.vx + wd.x * (0.6 + wind * 2.6) + swirl * 0.5) * dt;
+    p.z += (p.vz + wd.y * (0.6 + wind * 2.6) + Math.cos(t * 1.5 + p.ph) * 0.4) * dt;
+    p.y -= p.vy * (0.55 + wind * 0.7) * dt;
+    p.rx += p.sx * dt * (0.6 + wind);
+    p.ry += p.sy * dt * (0.6 + wind);
+    p.rz += p.sz * dt * (0.6 + wind);
+    if (p.y < p.floor || (p.x * p.x + p.z * p.z) > 400) {
+      spawnPetal(p, false);
+    }
+    tmpV.set(p.x, p.y, p.z);
+    tmpE.set(p.rx, p.ry, p.rz, 'XYZ');
+    tmpQ.setFromEuler(tmpE);
+    tmpS.setScalar(p.sc);
+    tmpM.compose(tmpV, tmpQ, tmpS);
+    petals.mesh.setMatrixAt(i, tmpM);
+  }
+  petals.mesh.instanceMatrix.needsUpdate = true;
+}
+
+let started = false;
+function animate() {
+  requestAnimationFrame(animate);
+  const rawDt = clock.getDelta();
+  const dt = Math.min(rawDt, 0.048);
+  const t = clock.elapsedTime;
+
+  sharedUniforms.uTime.value = t;
+  skyUniforms.uTime.value = t;
+  skyUniforms.uSkyWind.value = 0.62 + Math.sin(t * 0.05) * 0.25;
+  updateChainVFX(t, dt);
+  SEALS.forEach((sl, i) => {
+    sl.ring1.rotation.z = t * 0.35 + i;
+    sl.ring2.rotation.z = -t * 0.55 + i * 2;
+    sl.glow.material.opacity = 0.30 + 0.18 * Math.sin(t * 1.7 + i);
+  });
+
+  // 风
+  windState.cur += (windState.target - windState.cur) * Math.min(1, dt * 2.2);
+  sharedUniforms.uWind.value = windState.cur;
+  const wa = 0.62 + Math.sin(t * 0.06) * 0.22;
+  sharedUniforms.uWindDir.value.set(Math.cos(wa), Math.sin(wa));
+  beamUniforms.uTime.value = t;
+  updateBeamOrientation();
+
+  updateEnvironment(Math.min(rawDt, 0.25));
+  updatePetals(dt, t);
+
+  // 碎石漂浮
+  for (let i = 0; i < floaters.length; i++) {
+    const f = floaters[i];
+    f.m.position.y = f.y0 + Math.sin(t * f.sp + f.ph) * f.amp;
+    f.m.rotation.y += f.rot * dt;
+    f.m.rotation.x += f.rot * 0.6 * dt;
+  }
+
+  // 云漂移
+  clouds.grp.rotation.y += dt * (0.010 + windState.cur * 0.075);
+  for (let i = 0; i < clouds.items.length; i++) {
+    const c = clouds.items[i];
+    c.cl.position.y = c.y + Math.sin(t * 0.12 + c.ph) * c.amp;
+  }
+  dust.rotation.y += dt * 0.012;
+  motes.rotation.y -= dt * 0.02;
+
+  // 灯焰微跳
+  const flick = 0.86 + Math.sin(t * 9.3) * 0.06 + Math.sin(t * 21.7) * 0.04;
+  lanternLights.forEach((l) => { l.intensity = LIVE.lantern * 1.6 * flick; });
+  M.lanternGlow.emissiveIntensity = LIVE.lantern * 0.9 * flick;
+
+  // 相机
+  if (ctrl.auto && !ctrl.dragging) {
+    ctrl.idle += dt;
+    if (ctrl.idle > 1.6) ctrl.tTheta += dt * 0.045;
+  }
+  ctrl.theta += (ctrl.tTheta - ctrl.theta) * Math.min(1, dt * 6.5);
+  ctrl.phi += (ctrl.tPhi - ctrl.phi) * Math.min(1, dt * 6.5);
+  ctrl.radius += (ctrl.tRadius - ctrl.radius) * Math.min(1, dt * 5.0);
+  const sp = Math.sin(ctrl.phi), cp = Math.cos(ctrl.phi);
+  camera.position.set(
+    ctrl.target.x + ctrl.radius * sp * Math.sin(ctrl.theta),
+    ctrl.target.y + ctrl.radius * cp,
+    ctrl.target.z + ctrl.radius * sp * Math.cos(ctrl.theta)
+  );
+  camera.lookAt(ctrl.target);
+
+  renderer.render(scene, camera);
+
+  if (!started) {
+    started = true;
+    const boot = document.getElementById('boot');
+    boot.classList.add('gone');
+    setTimeout(() => { boot.style.display = 'none'; }, 1400);
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ *  E8. 启动
+ * ---------------------------------------------------------------- */
+applyPreset('day', true);
+resize();
+window.__DBG = { renderer: renderer, scene: scene, camera: camera, ctrl: ctrl, LIVE: LIVE, T: T, applyPreset: applyPreset, BGM: BGM, buildMs: Math.round(performance.now()) };
+window.BGM = BGM;
+camera.position.set(24, 18, 22);
+animate();
+
+})();
+</script>
+</body>
+</html>
